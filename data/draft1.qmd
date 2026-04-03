@@ -1,0 +1,93 @@
+---
+title: "draft1"
+format: html
+---
+
+```{r}
+library(ipumsr)
+ddi <- read_ipums_ddi("ahtus_00001.xml")
+df <- read_ipums_micro(ddi)
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+filtered_data <- df %>%
+  filter(
+    CIVSTAT == 1,
+    HHTYPE == 1,
+    UNDER18 >= 1,
+    AGE >= 22 & AGE <= 40,
+    EDUC %in% c(5, 6),
+    AGEYNGST >= 0 & AGEYNGST <= 18,
+    SEX %in% c(1, 2),
+    YEAR == 2018
+  ) %>%
+  mutate(
+    sex_label = ifelse(SEX == 1, "Male", "Female"),
+    ACT_UNDOM_HRS = ACT_UNDOM / 60   # convert minutes → hours
+  )
+
+summary_data <- filtered_data %>%
+  group_by(sex_label) %>%
+  summarise(avg_domestic_hours = mean(ACT_UNDOM_HRS, na.rm = TRUE))
+
+ggplot(summary_data, aes(x = sex_label, y = avg_domestic_hours, fill = sex_label)) +
+  geom_bar(stat = "identity") +
+  geom_text(
+    aes(label = round(avg_domestic_hours, 2)),  # show values
+    vjust = -0.5,                              # position above bars
+    size = 5
+  ) +
+  labs(
+    title = "Average Time Spent on Unpaid Domestic Work by Sex (2018)",
+    x = "Sex",
+    y = "Average Hours per Day"
+  ) +
+  theme_minimal() +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  scale_fill_manual(values = c("Male" = "steelblue", "Female" = "salmon"))
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+filtered_data <- df %>%
+  filter(
+    CIVSTAT == 1,
+    HHTYPE == 1,
+    UNDER18 >= 1,
+    AGE >= 22 & AGE <= 40,
+    EDUC %in% c(5, 6),
+    AGEYNGST >= 0 & AGEYNGST <= 18,
+    SEX %in% c(1, 2)
+  ) %>%
+  mutate(
+    sex_label = ifelse(SEX == 1, "Male", "Female"),
+    ACT_UNDOM_HRS = ACT_UNDOM / 60
+  )
+
+# Average hours by year and sex
+summary_data <- filtered_data %>%
+  group_by(YEAR, sex_label) %>%
+  summarise(avg_domestic_hours = mean(ACT_UNDOM_HRS, na.rm = TRUE), .groups = "drop")
+
+# Line plot
+ggplot(summary_data, aes(x = YEAR, y = avg_domestic_hours, color = sex_label)) +
+  geom_line(size = 1) +
+  geom_point() +
+  labs(
+    title = "Unpaid Domestic Work by Sex (1930 - 2018)",
+    x = "Year",
+    y = "Average Hours per Day",
+    color = "Sex"
+  ) +
+  theme_minimal() +
+  scale_color_manual(values = c("Male" = "steelblue", "Female" = "salmon"))
+
+# Note for 2018
+# 2.72 hrs for female
+# 1.57 hrs for male
+```
