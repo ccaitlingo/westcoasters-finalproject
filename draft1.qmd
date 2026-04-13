@@ -15,11 +15,54 @@ ddi <- read_ipums_ddi("data/ahtus_00001.xml")
 df <- read_ipums_micro(ddi)
 ```
 
+### Data Cleaning
+
+```{r}
+filtered_data <- df %>%
+  filter(
+    CIVSTAT == 1,
+    HHTYPE == 1,
+    UNDER18 >= 1,
+    AGE >= 22 & AGE <= 40,
+    EDUC %in% c(5, 6),
+    AGEYNGST >= 0 & AGEYNGST <= 18,
+    SEX %in% c(1, 2)
+  ) %>%
+  mutate(
+    sex_label = ifelse(SEX == 1, "Male", "Female"),
+    ACT_UNDOM_HRS = ACT_UNDOM / 60
+  )
+```
+
+### Initial Visualization 1
+
 ```{r}
 # Paid, Unpaid, and Childcare Work by Sex (2018)
 
-# Set stacking order for the bars
-# First level = bottom of the bar
+summary_data <- filtered_data %>%
+  mutate(
+    sex_label = ifelse(SEX == 1, "Male", "Female"),
+    # Convert minutes to hours
+    childcare = ACT_CHCARE / 60,
+    unpaid    = ACT_UNDOM / 60,
+    paid      = ACT_WORK / 60
+  ) %>%
+
+# Reshape
+pivot_longer(
+  cols = c(childcare, unpaid, paid),
+  names_to = "work_type",
+  values_to = "hours"
+) %>%
+
+# Group for averages
+group_by(sex_label, work_type) %>%
+summarise(
+  hours = mean(hours, na.rm = TRUE),
+  .groups = "drop"
+)
+
+# Set stacking order for the bars, first level is the bottom of the bar
 # Desired order: childcare (bottom), unpaid (middle), paid (top)
 summary_data$work_type <- factor(
   summary_data$work_type,
@@ -49,23 +92,10 @@ ggplot(summary_data, aes(x = sex_label, y = hours, fill = work_type)) +
   )
 ```
 
+### Initial Visualization 2
+
 ```{r}
 # Unpaid Domestic Work by Sex (1930-2018)
-
-filtered_data <- df %>%
-  filter(
-    CIVSTAT == 1,
-    HHTYPE == 1,
-    UNDER18 >= 1,
-    AGE >= 22 & AGE <= 40,
-    EDUC %in% c(5, 6),
-    AGEYNGST >= 0 & AGEYNGST <= 18,
-    SEX %in% c(1, 2)
-  ) %>%
-  mutate(
-    sex_label = ifelse(SEX == 1, "Male", "Female"),
-    ACT_UNDOM_HRS = ACT_UNDOM / 60
-  )
 
 # Average hours by year and sex
 summary_data <- filtered_data %>%
@@ -88,4 +118,77 @@ ggplot(summary_data, aes(x = YEAR, y = avg_domestic_hours, color = sex_label)) +
 # Note for 2018
 # 2.72 hrs for female
 # 1.57 hrs for male
+```
+
+```{r}
+#| eval: false
+
+# Print all column names
+sapply(df, function(x) attr(x, "label"))
+```
+
+## Clustering
+
+```{r}
+# Clustering Analysis
+
+# All time variables
+time_vars <- df[, c(
+  "ACT_CHCARE", "ACT_CIVIC", "ACT_EDUCA", "ACT_INHOME",
+  "ACT_MEDIA", "ACT_OUTHOME", "ACT_PCARE", "ACT_PHYSICAL",
+  "ACT_TRAVEL", "ACT_UNDOM", "ACT_WORK"
+)]
+
+# Clean data
+row_totals <- rowSums(time_vars)
+time_vars <- time_vars[row_totals > 0, ]
+  
+# Convert time variables to time porportion within a day (24 hours)
+row_totals <- rowSums(time_vars)
+time_prop <- sweep(time_vars, 1, row_totals, "/")
+
+# Remove 0s
+time_prop[time_prop <= 0] <- 1e-6
+
+# CLR Transform
+clr_transform <- function(x) {
+  log(x) - mean(log(x))
+}
+
+time_clr <- t(apply(time_prop, 1, clr_transform))
+
+# All must be false...
+any(is.na(time_clr))
+any(is.infinite(time_clr))
+any(is.nan(time_clr))
+
+# Run PCA
+pca <- prcomp(time_clr, center = TRUE, scale. = TRUE)
+summary(pca)
+
+# Visualize
+plot(pca$x[,1], pca$x[,2],
+     xlab = "PC1", ylab = "PC2",
+     main = "PCA of Time Use")
+
+# Understand components
+# Each "principal component" is a linear combination of the time variables
+pca$rotation
+
+# Select the top 3 components
+pca_data <- pca$x[, 1:3]  # first 3 PCs
+
+set.seed(123)
+kmeans_result <- kmeans(pca_data, centers = 3)
+
+# Visualize clusters
+plot(pca_data[,1], pca_data[,2],
+     col = kmeans_result$cluster,
+     pch = 16,
+     xlab = "PC1", ylab = "PC2",
+     main = "Behavioral Clusters")
+
+# Labels
+df_clusters <- time_vars
+df_clusters$cluster <- kmeans_result$cluster
 ```
