@@ -1,0 +1,75 @@
+---
+title: "Final Project Prelim Data Analysis"
+format: html
+---
+
+```{r load_packages, warnings=FALSE}
+library(ipumsr)
+library(tidyverse)
+library(haven)
+```
+
+```{r load_data}
+ddi <- read_ipums_ddi("ahtus_00001.xml")
+data <- read_ipums_micro(ddi)
+```
+
+# Exploring proportion of women who get married vs men who get married over time
+
+```{r}
+marriedproportion <- data %>% 
+  mutate(
+    married = case_when(CIVSTAT == 04 ~ 0, TRUE ~ 1),
+    SAMPLE = as.numeric(SAMPLE),
+    SEX = case_when(
+      SEX == 1 ~ "Male",
+      SEX == 2 ~ "Female",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(SEX)) %>%
+  group_by(SAMPLE, SEX) %>% 
+  summarize(mean_married = mean(married), .groups = "drop")
+
+marriedproportion
+```
+
+```{r}
+ggplot(marriedproportion, aes(x = SAMPLE, y = mean_married, color = SEX)) + 
+  geom_line() + labs(x = "Year", title = "Proportion of Individuals Married by Sex")
+```
+
+
+# Average time spent on child care for men vs women over time
+
+```{r}
+childcare_avg <- data %>% 
+  mutate(
+    SAMPLE = as.numeric(SAMPLE),
+    SEX = case_when(
+      SEX == 1 ~ "Male",
+      SEX == 2 ~ "Female",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(SEX)) %>%
+  group_by(SAMPLE, SEX) %>% 
+  summarize(
+    avg_childcare = mean(ACT_CHCARE, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+childcare_avg
+```
+
+```{r}
+ggplot(childcare_avg, aes(x = SAMPLE, y = avg_childcare, color = SEX)) + 
+  geom_line(size = 1.2) +
+  labs(
+    title = "Average Daily Child Care Time by Sex",
+    x = "Year",
+    y = "Minutes per Day",
+    color = "Sex"
+  ) 
+```
+
