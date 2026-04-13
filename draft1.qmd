@@ -15,11 +15,54 @@ ddi <- read_ipums_ddi("data/ahtus_00001.xml")
 df <- read_ipums_micro(ddi)
 ```
 
+### Data Cleaning
+
+```{r}
+filtered_data <- df %>%
+  filter(
+    CIVSTAT == 1,
+    HHTYPE == 1,
+    UNDER18 >= 1,
+    AGE >= 22 & AGE <= 40,
+    EDUC %in% c(5, 6),
+    AGEYNGST >= 0 & AGEYNGST <= 18,
+    SEX %in% c(1, 2)
+  ) %>%
+  mutate(
+    sex_label = ifelse(SEX == 1, "Male", "Female"),
+    ACT_UNDOM_HRS = ACT_UNDOM / 60
+  )
+```
+
+### Initial Visualization 1
+
 ```{r}
 # Paid, Unpaid, and Childcare Work by Sex (2018)
 
-# Set stacking order for the bars
-# First level = bottom of the bar
+summary_data <- filtered_data %>%
+  mutate(
+    sex_label = ifelse(SEX == 1, "Male", "Female"),
+    # Convert minutes to hours
+    childcare = ACT_CHCARE / 60,
+    unpaid    = ACT_UNDOM / 60,
+    paid      = ACT_WORK / 60
+  ) %>%
+
+# Reshape
+pivot_longer(
+  cols = c(childcare, unpaid, paid),
+  names_to = "work_type",
+  values_to = "hours"
+) %>%
+
+# Group for averages
+group_by(sex_label, work_type) %>%
+summarise(
+  hours = mean(hours, na.rm = TRUE),
+  .groups = "drop"
+)
+
+# Set stacking order for the bars, first level is the bottom of the bar
 # Desired order: childcare (bottom), unpaid (middle), paid (top)
 summary_data$work_type <- factor(
   summary_data$work_type,
@@ -49,23 +92,10 @@ ggplot(summary_data, aes(x = sex_label, y = hours, fill = work_type)) +
   )
 ```
 
+### Initial Visualization 2
+
 ```{r}
 # Unpaid Domestic Work by Sex (1930-2018)
-
-filtered_data <- df %>%
-  filter(
-    CIVSTAT == 1,
-    HHTYPE == 1,
-    UNDER18 >= 1,
-    AGE >= 22 & AGE <= 40,
-    EDUC %in% c(5, 6),
-    AGEYNGST >= 0 & AGEYNGST <= 18,
-    SEX %in% c(1, 2)
-  ) %>%
-  mutate(
-    sex_label = ifelse(SEX == 1, "Male", "Female"),
-    ACT_UNDOM_HRS = ACT_UNDOM / 60
-  )
 
 # Average hours by year and sex
 summary_data <- filtered_data %>%
@@ -88,4 +118,206 @@ ggplot(summary_data, aes(x = YEAR, y = avg_domestic_hours, color = sex_label)) +
 # Note for 2018
 # 2.72 hrs for female
 # 1.57 hrs for male
+```
+
+```{r}
+#| eval: false
+
+# Print all column names
+sapply(df, function(x) attr(x, "label"))
+```
+
+### Clustering (2D)
+
+```{r}
+# Select time-use variables
+time_vars <- c(
+  "ACT_WORK", "ACT_CHCARE", "ACT_EDUCA",
+  "ACT_INHOME", "ACT_MEDIA", "ACT_OUTHOME",
+  "ACT_PHYSICAL", "ACT_TRAVEL", "ACT_PCARE",
+  "ACT_UNDOM", "ACT_CIVIC"
+)
+
+# Keep only selected variables
+df_time <- df[, time_vars]
+
+# Drop missing values
+df_time <- na.omit(df_time)
+
+# Sample data (raw dataset is too large)
+set.seed(123)
+df_sample <- df_time[sample(nrow(df_time), 5000), ]
+
+# Standardize variables
+df_scaled <- scale(df_sample)
+
+# Run PCA
+pca_res <- prcomp(df_scaled, center = TRUE, scale. = TRUE)
+
+# Optional scree plot (to determine how many PCs to use)
+eig_vals <- pca_res$sdev^2
+var_explained <- eig_vals / sum(eig_vals)
+
+plot(var_explained, type = "b",
+     xlab = "Principal Component",
+     ylab = "Proportion of Variance Explained",
+     main = "Scree Plot (PCA)",
+     pch = 16)
+
+# Use the first 2 PCs
+pca_scores <- pca_res$x[, 1:2]
+
+# Distance matrix on PCA scores
+dist_mat <- dist(pca_scores)
+
+# Hierarchical clustering (Ward's method)
+hc <- hclust(dist_mat, method = "ward.D2")
+
+# Dendrogram
+plot(hc, labels = FALSE, main = "Hierarchical Clustering")
+
+# Cut into clusters
+k <- 4
+clusters <- cutree(hc, k = k)
+
+# Cluster counts
+table(clusters)
+
+# Plot clusters in PCA space
+plot(pca_scores[,1], pca_scores[,2],
+     col = clusters,
+     pch = 16,
+     xlab = "Principal Component 1",
+     ylab = "Principal Component 2",
+     main = "Hierarchical Clusters in PCA Space")
+
+# Add legend
+legend("topright",
+       legend = paste("Cluster", sort(unique(clusters))),
+       col = sort(unique(clusters)),
+       pch = 16,
+       bty = "n")
+```
+
+```{r}
+# Sex mapped onto clusters
+
+time_vars <- c(
+  "ACT_WORK", "ACT_CHCARE","ACT_UNDOM"
+)
+
+# Keep only selected variables + gender
+df_time <- filtered_data[, c(time_vars, "SEX")]
+
+# Drop missing values
+df_time <- na.omit(df_time)
+
+# Sample data (needed for clustering stability)
+set.seed(123)
+df_sample <- df_time[sample(nrow(df_time), 5000), ]
+
+# Create gender label
+df_sample$gender <- ifelse(df_sample$SEX == 1, "Male", "Female")
+
+# Standardize time-use variables
+df_scaled <- scale(df_sample[, time_vars])
+
+# Run PCA
+pca_res <- prcomp(df_scaled, center = TRUE, scale. = TRUE)
+
+# Extract first 2 PCs
+pca_scores <- as.data.frame(pca_res$x[, 1:2])
+
+# Hierarchical clustering on PCA space
+dist_mat <- dist(pca_scores)
+hc <- hclust(dist_mat, method = "ward.D2")
+
+# Cut into clusters
+k <- 4
+clusters <- cutree(hc, k = k)
+
+# Attach cluster + gender
+pca_scores$cluster <- factor(clusters)
+pca_scores$gender <- df_sample$gender
+
+# -------------------------
+# Plot 1: Gender only
+# -------------------------
+plot(pca_scores$PC1, pca_scores$PC2,
+     col = ifelse(pca_scores$gender == "Male", "blue", "red"),
+     pch = 16,
+     xlab = "Principal Component 1",
+     ylab = "Principal Component 2",
+     main = "PCA Space Colored by Gender")
+
+legend("topright",
+       legend = c("Male", "Female"),
+       col = c("blue", "red"),
+       pch = 16,
+       bty = "n")
+
+# -------------------------
+# Plot 2: Clusters + Gender
+# -------------------------
+plot(pca_scores$PC1, pca_scores$PC2,
+     col = pca_scores$cluster,
+     pch = ifelse(pca_scores$gender == "Male", 16, 17),
+     xlab = "Principal Component 1",
+     ylab = "Principal Component 2",
+     main = "Clusters + Gender in PCA Space")
+
+legend("topright",
+       legend = c("Cluster 1","Cluster 2","Cluster 3","Cluster 4",
+                  "Male","Female"),
+       col = c(1:4, "black","black"),
+       pch = c(rep(16,4),16,17),
+       bty = "n")
+
+# -------------------------
+# Optional: cluster-by-gender table
+# -------------------------
+table(pca_scores$cluster, pca_scores$gender)
+```
+
+### Clustering (3D)
+
+```{r}
+# Load packages
+library(plotly)
+
+# Select time-use variables
+time_vars <- c(
+  "ACT_WORK", "ACT_CHCARE", "ACT_EDUCA",
+  "ACT_INHOME", "ACT_MEDIA", "ACT_OUTHOME",
+  "ACT_PHYSICAL", "ACT_TRAVEL", "ACT_PCARE",
+  "ACT_UNDOM", "ACT_CIVIC"
+)
+
+# Keep complete cases
+df_time <- na.omit(df[, time_vars])
+
+# Standardize data
+df_scaled <- scale(df_time)
+
+# Run PCA
+pca_res <- prcomp(df_scaled, center = TRUE, scale. = TRUE)
+
+# Extract first 3 principal components
+scores <- as.data.frame(pca_res$x[, 1:3])
+
+# Run clustering (optional, if you want colors)
+set.seed(123)
+clusters <- kmeans(scores, centers = 4, nstart = 25)$cluster
+scores$cluster <- factor(clusters)
+
+# 3D PCA plot
+plot_ly(
+  scores,
+  x = ~PC1,
+  y = ~PC2,
+  z = ~PC3,
+  color = ~cluster,
+  type = "scatter3d",
+  mode = "markers"
+)
 ```
