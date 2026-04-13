@@ -29,8 +29,7 @@ filtered_data <- df %>%
     SEX %in% c(1, 2)
   ) %>%
   mutate(
-    sex_label = ifelse(SEX == 1, "Male", "Female"),
-    ACT_UNDOM_HRS = ACT_UNDOM / 60
+    sex_label = ifelse(SEX == 1, "Male", "Female")
   )
 ```
 
@@ -41,7 +40,6 @@ filtered_data <- df %>%
 
 summary_data <- filtered_data %>%
   mutate(
-    sex_label = ifelse(SEX == 1, "Male", "Female"),
     # Convert minutes to hours
     childcare = ACT_CHCARE / 60,
     unpaid    = ACT_UNDOM / 60,
@@ -100,6 +98,7 @@ ggplot(summary_data, aes(x = sex_label, y = hours, fill = work_type)) +
 # Average hours by year and sex
 summary_data <- filtered_data %>%
   group_by(YEAR, sex_label) %>%
+  mutate(ACT_UNDOM_HRS = ACT_UNDOM / 60) %>%
   summarise(avg_domestic_hours = mean(ACT_UNDOM_HRS, na.rm = TRUE), .groups = "drop")
 
 # Line plot
@@ -139,7 +138,7 @@ time_vars <- c(
 )
 
 # Keep only selected variables
-df_time <- df[, time_vars]
+df_time <- filtered_data[, time_vars]
 
 # Drop missing values
 df_time <- na.omit(df_time)
@@ -210,7 +209,7 @@ time_vars <- c(
 )
 
 # Keep only selected variables + employement status
-df_time <- df[, c(time_vars, "NOEMPLOY")]
+df_time <- filtered_data[, c(time_vars, "NOEMPLOY")]
 
 # Drop missing values
 df_time <- na.omit(df_time)
@@ -301,7 +300,7 @@ time_vars <- c(
 )
 
 # Keep complete cases
-df_time <- na.omit(df[, time_vars])
+df_time <- na.omit(filtered_data[, time_vars])
 
 # Standardize data
 df_scaled <- scale(df_time)
@@ -344,7 +343,7 @@ time_vars <- c(
 )
 
 # Keep data + sex, drop missing
-df_time <- na.omit(df[, c(time_vars, "SEX")])
+df_time <- na.omit(filtered_data[, c(time_vars, "SEX")])
 
 # -------------------------
 # Gender label
