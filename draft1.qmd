@@ -4,13 +4,20 @@ format: html
 ---
 
 ```{r}
+# R packages
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+# Data
 library(ipumsr)
-ddi <- read_ipums_ddi("ahtus_00001.xml")
+ddi <- read_ipums_ddi("data/ahtus_00001.xml")
 df <- read_ipums_micro(ddi)
 ```
 
 ```{r}
-# ------------------------------
+# Paid, Unpaid, and Childcare Work by Sex (2018)
+
 # Set stacking order for the bars
 # First level = bottom of the bar
 # Desired order: childcare (bottom), unpaid (middle), paid (top)
@@ -18,7 +25,6 @@ summary_data$work_type <- factor(
   summary_data$work_type,
   levels = c("childcare", "unpaid", "paid")  # <-- CHANGE ORDER HERE
 )
-# ------------------------------
 
 ggplot(summary_data, aes(x = sex_label, y = hours, fill = work_type)) +
   geom_bar(stat = "identity") +
@@ -44,8 +50,7 @@ ggplot(summary_data, aes(x = sex_label, y = hours, fill = work_type)) +
 ```
 
 ```{r}
-library(dplyr)
-library(ggplot2)
+# Unpaid Domestic Work by Sex (1930-2018)
 
 filtered_data <- df %>%
   filter(
