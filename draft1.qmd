@@ -165,7 +165,7 @@ plot(var_explained, type = "b",
      pch = 16)
 
 # Use the first 2 PCs
-pca_scores <- pca_res$x[, 1:2]
+pca_scores <- pca_res$x[, 1:4]
 
 # Distance matrix on PCA scores
 dist_mat <- dist(pca_scores)
@@ -177,7 +177,7 @@ hc <- hclust(dist_mat, method = "ward.D2")
 plot(hc, labels = FALSE, main = "Hierarchical Clustering")
 
 # Cut into clusters
-k <- 4
+k <- 2
 clusters <- cutree(hc, k = k)
 
 # Cluster counts
@@ -200,14 +200,17 @@ legend("topright",
 ```
 
 ```{r}
-# Sex mapped onto clusters
+# Employment mapped onto clusters
 
 time_vars <- c(
-  "ACT_WORK", "ACT_CHCARE","ACT_UNDOM"
+  "ACT_WORK", "ACT_CHCARE", "ACT_EDUCA",
+  "ACT_INHOME", "ACT_MEDIA", "ACT_OUTHOME",
+  "ACT_PHYSICAL", "ACT_TRAVEL", "ACT_PCARE",
+  "ACT_UNDOM", "ACT_CIVIC"
 )
 
-# Keep only selected variables + gender
-df_time <- filtered_data[, c(time_vars, "SEX")]
+# Keep only selected variables + employement status
+df_time <- df[, c(time_vars, "NOEMPLOY")]
 
 # Drop missing values
 df_time <- na.omit(df_time)
@@ -216,8 +219,10 @@ df_time <- na.omit(df_time)
 set.seed(123)
 df_sample <- df_time[sample(nrow(df_time), 5000), ]
 
-# Create gender label
-df_sample$gender <- ifelse(df_sample$SEX == 1, "Male", "Female")
+# Create employment label
+df_sample$empstat <- ifelse(df_sample$NOEMPLOY == 0, "Unemployed",
+                    ifelse(df_sample$NOEMPLOY == 1, "Employed",
+                           "Other"))
 
 # Standardize time-use variables
 df_scaled <- scale(df_sample[, time_vars])
@@ -225,8 +230,11 @@ df_scaled <- scale(df_sample[, time_vars])
 # Run PCA
 pca_res <- prcomp(df_scaled, center = TRUE, scale. = TRUE)
 
-# Extract first 2 PCs
-pca_scores <- as.data.frame(pca_res$x[, 1:2])
+# View the principal components
+pca_res$rotation[, 1:4]
+
+# Extract first 4 PCs
+pca_scores <- as.data.frame(pca_res$x[, 1:4])
 
 # Hierarchical clustering on PCA space
 dist_mat <- dist(pca_scores)
@@ -236,47 +244,46 @@ hc <- hclust(dist_mat, method = "ward.D2")
 k <- 4
 clusters <- cutree(hc, k = k)
 
-# Attach cluster + gender
+# Attach cluster + employement status
 pca_scores$cluster <- factor(clusters)
-pca_scores$gender <- df_sample$gender
+pca_scores$empstat <- df_sample$empstat
 
 # -------------------------
-# Plot 1: Gender only
+# Plot 1: Employement Status only
 # -------------------------
 plot(pca_scores$PC1, pca_scores$PC2,
-     col = ifelse(pca_scores$gender == "Male", "blue", "red"),
+     col = ifelse(pca_scores$empstat == "Unemployed", "blue", "red"),
      pch = 16,
      xlab = "Principal Component 1",
      ylab = "Principal Component 2",
-     main = "PCA Space Colored by Gender")
+     main = "PCA Space Colored by Employment")
 
 legend("topright",
-       legend = c("Male", "Female"),
+       legend = c("Unemployed", "Employed"),
        col = c("blue", "red"),
        pch = 16,
        bty = "n")
 
 # -------------------------
-# Plot 2: Clusters + Gender
+# Plot 2: Clusters + Employement Status
 # -------------------------
 plot(pca_scores$PC1, pca_scores$PC2,
      col = pca_scores$cluster,
-     pch = ifelse(pca_scores$gender == "Male", 16, 17),
+     pch = ifelse(pca_scores$empstat == "Unemployed", 16, 17),
      xlab = "Principal Component 1",
      ylab = "Principal Component 2",
-     main = "Clusters + Gender in PCA Space")
+     main = "Clusters + Employment Status in PCA Space")
 
 legend("topright",
-       legend = c("Cluster 1","Cluster 2","Cluster 3","Cluster 4",
-                  "Male","Female"),
+       legend = c("Cluster 1","Cluster 2","Cluster 3","Cluster 4"),
        col = c(1:4, "black","black"),
        pch = c(rep(16,4),16,17),
        bty = "n")
 
 # -------------------------
-# Optional: cluster-by-gender table
+# Optional: cluster-by-empstat table
 # -------------------------
-table(pca_scores$cluster, pca_scores$gender)
+table(pca_scores$cluster, pca_scores$empstat)
 ```
 
 ### Clustering (3D)
@@ -302,8 +309,8 @@ df_scaled <- scale(df_time)
 # Run PCA
 pca_res <- prcomp(df_scaled, center = TRUE, scale. = TRUE)
 
-# Extract first 3 principal components
-scores <- as.data.frame(pca_res$x[, 1:3])
+# Extract first 4 principal components
+scores <- as.data.frame(pca_res$x[, 1:4])
 
 # Run clustering (optional, if you want colors)
 set.seed(123)
@@ -320,4 +327,72 @@ plot_ly(
   type = "scatter3d",
   mode = "markers"
 )
+```
+
+```{r}
+# Load package
+library(plotly)
+
+# -------------------------
+# Variables
+# -------------------------
+time_vars <- c(
+  "ACT_WORK", "ACT_CHCARE", "ACT_EDUCA",
+  "ACT_INHOME", "ACT_MEDIA", "ACT_OUTHOME",
+  "ACT_PHYSICAL", "ACT_TRAVEL", "ACT_PCARE",
+  "ACT_UNDOM", "ACT_CIVIC"
+)
+
+# Keep data + sex, drop missing
+df_time <- na.omit(df[, c(time_vars, "SEX")])
+
+# -------------------------
+# Gender label
+# -------------------------
+df_time$gender <- ifelse(df_time$SEX == 1, "Male",
+                   ifelse(df_time$SEX == 2, "Female", "Non-Binary"))
+
+# -------------------------
+# Standardize
+# -------------------------
+df_scaled <- scale(df_time[, time_vars])
+
+# -------------------------
+# PCA (3 components)
+# -------------------------
+pca_res <- prcomp(df_scaled, center = TRUE, scale. = TRUE)
+
+scores <- as.data.frame(pca_res$x[, 1:3])
+
+# -------------------------
+# Clustering (k-means)
+# -------------------------
+set.seed(123)
+clusters <- kmeans(scores, centers = 4, nstart = 25)$cluster
+scores$cluster <- factor(clusters)
+
+# Add gender
+scores$gender <- df_time$gender
+
+# -------------------------
+# 3D PCA plot (colored by sex)
+# -------------------------
+plot_ly(
+  scores,
+  x = ~PC1,
+  y = ~PC2,
+  z = ~PC3,
+  color = ~gender,
+  colors = c("blue", "red", "gray"),
+  type = "scatter3d",
+  mode = "markers"
+) %>%
+  layout(
+    title = "3D PCA Space Colored by Sex",
+    scene = list(
+      xaxis = list(title = "PC1"),
+      yaxis = list(title = "PC2"),
+      zaxis = list(title = "PC3")
+    )
+  )
 ```
