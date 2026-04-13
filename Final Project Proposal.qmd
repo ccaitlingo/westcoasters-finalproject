@@ -3,6 +3,9 @@ title: "Final Project Prelim Data Analysis"
 format: html
 ---
 
+/Users/meredithhillier/Desktop/School/8. Spring 2026/MATH 244 - Intermediate Data Science/Final Project/westcoasters-finalproject
+
+
 ```{r load_packages, warnings=FALSE}
 library(ipumsr)
 library(tidyverse)
@@ -10,7 +13,7 @@ library(haven)
 ```
 
 ```{r load_data}
-ddi <- read_ipums_ddi("ahtus_00001.xml")
+ddi <- read_ipums_ddi("data/ahtus_00001.xml")
 data <- read_ipums_micro(ddi)
 ```
 
@@ -71,5 +74,119 @@ ggplot(childcare_avg, aes(x = SAMPLE, y = avg_childcare, color = SEX)) +
     y = "Minutes per Day",
     color = "Sex"
   ) 
+```
+
+# 4/13 Data Exploration
+
+```{r}
+data <- data %>% mutate(SEX2 = case_when(
+      SEX == 1 ~ "Male",
+      SEX == 2 ~ "Female",
+      TRUE ~ NA_character_
+    ))
+```
+
+
+Childcare vs. wages, separately by sex
+- Want a way to control for hours worked per day
+- FULLTIME = 1 if full time work
+- HHTYPE = 1 if married with child
+
+```{r}
+data %>%
+  filter(!is.na(WAGELM), !is.na(ACT_CHCARE)) %>%
+  filter(SAMPLE==2018, FULLTIME==1, HHTYPE==1) %>%
+  ggplot(aes(x = ACT_CHCARE, y = WAGELM, color = SEX2)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "Relationship Between Childcare Time and Wages by Gender in 2018",
+    x = "Minutes of Childcare per Day",
+    y = "Monthly Wage"
+  )
+```
+
+
+Distribution of wages by gender
+
+```{r}
+data %>%
+  filter(!is.na(WAGELM)) %>%
+  ggplot(aes(x = WAGELM, fill = SEX2)) +
+  geom_density(alpha = 0.4) +
+  labs(title = "Wage Distribution by Gender")
+```
+ 
+ Distribution of time spent on childcare by gender
+ 
+```{r}
+data %>%
+  filter(!is.na(ACT_CHCARE)) %>%
+  ggplot(aes(x = ACT_CHCARE, fill = SEX2)) +
+  geom_density(alpha = 0.4) +
+  labs(title = "Distribution of Childcare Time by Gender")
+```
+
+ 
+# REGRESSIONS
+
+```{r cleaning}
+
+# filtering and turning sex and full-time into binary variables
+data <- data %>% 
+  filter(HHTYPE == 1) %>% # filter to married with kids
+                          # isolating a group where childcare is relevant
+                          # avoid comparing people who don’t face childcare constraints
+  filter(
+    SEX %in% c(1, 2),
+    FULLTIME %in% c(0, 1)
+  ) %>% # filter out missing or dirty cases of sex and full time work
+  
+  filter(!is.na(AGE), !is.na(EDUC)) %>%
+  mutate(
+    female = ifelse(SEX == 2, 1, 0),
+    female = factor(female),
+    FULLTIME = factor(FULLTIME)
+  ) %>%
+  
+  filter(FULLTIME == 1)
+
+# filter to just 2018 data
+data2018 <- data %>% filter(SAMPLE==2018, !is.na(WAGELM), !is.na(ACT_CHCARE))
+
+```
+
+```{r plots}
+
+# plots
+data2018 %>% select(WAGELM, ACT_CHCARE, WKHRS) %>% pairs
+
+data2018 %>%
+  ggplot(aes(x = ACT_CHCARE, y = WAGELM, color = SEX2)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    labs(
+      title = "Relationship Between Childcare Time and Wages by Gender in 2018 for Individuals Who are Married with Kids",
+      x = "Minutes of Childcare per Day",
+      y = "Monthly Wage"
+    ) 
+```
+
+Is childcare penalized more for women, controlling for employment intensity?
+
+```{r}
+baseline_model <- lm(WAGELM ~ ACT_CHCARE*female + AGE + EDUC, data2018)
+summary(baseline_model)
+```
+
+
+```{r}
+interaction_model <- lm(WAGELM ~ ACT_CHCARE*SEX*FULLTIME, data2018)
+summary(interaction_model)
+```
+
+```{r}
+interaction_model2 <- lm(WAGELM ~ ACT_CHCARE*SEX + ACT_CHCARE*FULLTIME, data2018)
+summary(interaction_model2)
 ```
 
