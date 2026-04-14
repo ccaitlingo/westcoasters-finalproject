@@ -248,6 +248,11 @@ tab <- table(pca_scores$cluster, pca_scores$binary_var)
 # Row-wise percentages (within cluster)
 pct <- round(prop.table(tab, margin = 1) * 100, 1)
 pct
+
+# Group clusters 1+3 and 2+4
+grp <- ifelse(pca_scores$cluster %in% c(1,3), "C1+3", "C2+4")
+pct_grp <- round(prop.table(table(grp, pca_scores$binary_var), 1) * 100, 1)
+pct_grp
 ```
 
 ### Clustering (3D)
