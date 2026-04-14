@@ -129,26 +129,52 @@ sapply(df, function(x) attr(x, "label"))
 ### Clustering (2D)
 
 ```{r}
+# Redefine dataset
+filtered_data <- df %>%
+  filter(
+    CIVSTAT == 1,
+    HHTYPE %in% c(1,2),
+    AGE >= 22 & AGE <= 40,
+    EDUC %in% c(5, 6),
+    AGEYNGST >= 0 & AGEYNGST <= 18,
+    SEX %in% c(1, 2)
+  ) %>%
+  mutate(
+    sex_label = ifelse(SEX == 1, "Male", "Female")
+  )
+```
+
+```{r}
+# Employment mapped onto clusters
+
+# Combine two leisure categories
+filtered_data$ACT_LEISURE <- filtered_data$ACT_INHOME + filtered_data$ACT_OUTHOME
+filtered_data$ACT_SELFCARE <- filtered_data$ACT_PCARE + filtered_data$ACT_PHYSICAL
+
 # Select time-use variables
 time_vars <- c(
   "ACT_WORK", "ACT_CHCARE", "ACT_EDUCA",
-  "ACT_INHOME", "ACT_MEDIA", "ACT_OUTHOME",
-  "ACT_PHYSICAL", "ACT_TRAVEL", "ACT_PCARE",
-  "ACT_UNDOM", "ACT_CIVIC"
+  "ACT_LEISURE", "ACT_MEDIA", "ACT_TRAVEL", "ACT_SELFCARE",
+  "ACT_UNDOM", "ACT_CIVIC", "AGEYNGST", "UNDER5", "UNDER18"
 )
 
-# Keep only selected variables
-df_time <- filtered_data[, time_vars]
+# Keep only selected variables + employement status
+df_time <- filtered_data[, c(time_vars, "SEX")]
 
 # Drop missing values
 df_time <- na.omit(df_time)
 
-# Sample data (raw dataset is too large)
+# Sample data (needed for clustering stability)
 set.seed(123)
 df_sample <- df_time[sample(nrow(df_time), 5000), ]
 
-# Standardize variables
-df_scaled <- scale(df_sample)
+# Create label
+df_sample$binary_var <- ifelse(df_sample$SEX == 1, "Male",
+                    ifelse(df_sample$SEX == 2, "Female",
+                           "Non-Binary"))
+
+# Standardize time-use variables
+df_scaled <- scale(df_sample[, time_vars])
 
 # Run PCA
 pca_res <- prcomp(df_scaled, center = TRUE, scale. = TRUE)
@@ -162,72 +188,6 @@ plot(var_explained, type = "b",
      ylab = "Proportion of Variance Explained",
      main = "Scree Plot (PCA)",
      pch = 16)
-
-# Use the first 2 PCs
-pca_scores <- pca_res$x[, 1:4]
-
-# Distance matrix on PCA scores
-dist_mat <- dist(pca_scores)
-
-# Hierarchical clustering (Ward's method)
-hc <- hclust(dist_mat, method = "ward.D2")
-
-# Dendrogram
-plot(hc, labels = FALSE, main = "Hierarchical Clustering")
-
-# Cut into clusters
-k <- 2
-clusters <- cutree(hc, k = k)
-
-# Cluster counts
-table(clusters)
-
-# Plot clusters in PCA space
-plot(pca_scores[,1], pca_scores[,2],
-     col = clusters,
-     pch = 16,
-     xlab = "Principal Component 1",
-     ylab = "Principal Component 2",
-     main = "Hierarchical Clusters in PCA Space")
-
-# Add legend
-legend("topright",
-       legend = paste("Cluster", sort(unique(clusters))),
-       col = sort(unique(clusters)),
-       pch = 16,
-       bty = "n")
-```
-
-```{r}
-# Employment mapped onto clusters
-
-time_vars <- c(
-  "ACT_WORK", "ACT_CHCARE", "ACT_EDUCA",
-  "ACT_INHOME", "ACT_MEDIA", "ACT_OUTHOME",
-  "ACT_PHYSICAL", "ACT_TRAVEL", "ACT_PCARE",
-  "ACT_UNDOM", "ACT_CIVIC"
-)
-
-# Keep only selected variables + employement status
-df_time <- filtered_data[, c(time_vars, "NOEMPLOY")]
-
-# Drop missing values
-df_time <- na.omit(df_time)
-
-# Sample data (needed for clustering stability)
-set.seed(123)
-df_sample <- df_time[sample(nrow(df_time), 5000), ]
-
-# Create employment label
-df_sample$empstat <- ifelse(df_sample$NOEMPLOY == 0, "Unemployed",
-                    ifelse(df_sample$NOEMPLOY == 1, "Employed",
-                           "Other"))
-
-# Standardize time-use variables
-df_scaled <- scale(df_sample[, time_vars])
-
-# Run PCA
-pca_res <- prcomp(df_scaled, center = TRUE, scale. = TRUE)
 
 # View the principal components
 pca_res$rotation[, 1:4]
@@ -245,44 +205,49 @@ clusters <- cutree(hc, k = k)
 
 # Attach cluster + employement status
 pca_scores$cluster <- factor(clusters)
-pca_scores$empstat <- df_sample$empstat
+pca_scores$binary_var <- df_sample$binary_var
 
 # -------------------------
 # Plot 1: Employement Status only
 # -------------------------
 plot(pca_scores$PC1, pca_scores$PC2,
-     col = ifelse(pca_scores$empstat == "Unemployed", "blue", "red"),
-     pch = 16,
+     col = ifelse(pca_scores$binary_var == "Male", "blue", "red"),
+     pch = 1,
      xlab = "Principal Component 1",
      ylab = "Principal Component 2",
-     main = "PCA Space Colored by Employment")
+     main = "PCA Space Colored by Sex")
 
 legend("topright",
-       legend = c("Unemployed", "Employed"),
+       legend = c("Male", "Female"),
        col = c("blue", "red"),
        pch = 16,
        bty = "n")
 
 # -------------------------
-# Plot 2: Clusters + Employement Status
+# Plot 2: Clusters + Binary Variable
 # -------------------------
 plot(pca_scores$PC1, pca_scores$PC2,
      col = pca_scores$cluster,
-     pch = ifelse(pca_scores$empstat == "Unemployed", 16, 17),
+     pch = ifelse(pca_scores$binary_var == "Male", 1, 1),
      xlab = "Principal Component 1",
      ylab = "Principal Component 2",
-     main = "Clusters + Employment Status in PCA Space")
+     main = "Clusters in PCA Space")
 
 legend("topright",
        legend = c("Cluster 1","Cluster 2","Cluster 3","Cluster 4"),
-       col = c(1:4, "black","black"),
-       pch = c(rep(16,4),16,17),
+       col = c(1:4, "black"),
+       pch = 16,
        bty = "n")
 
 # -------------------------
-# Optional: cluster-by-empstat table
+# Table
 # -------------------------
-table(pca_scores$cluster, pca_scores$empstat)
+# Counts
+tab <- table(pca_scores$cluster, pca_scores$binary_var)
+
+# Row-wise percentages (within cluster)
+pct <- round(prop.table(tab, margin = 1) * 100, 1)
+pct
 ```
 
 ### Clustering (3D)
@@ -291,12 +256,15 @@ table(pca_scores$cluster, pca_scores$empstat)
 # Load packages
 library(plotly)
 
+# Combine two leisure categories
+filtered_data$ACT_LEISURE <- filtered_data$ACT_INHOME + filtered_data$ACT_OUTHOME
+filtered_data$ACT_SELFCARE <- filtered_data$ACT_PCARE + filtered_data$ACT_PHYSICAL
+
 # Select time-use variables
 time_vars <- c(
   "ACT_WORK", "ACT_CHCARE", "ACT_EDUCA",
-  "ACT_INHOME", "ACT_MEDIA", "ACT_OUTHOME",
-  "ACT_PHYSICAL", "ACT_TRAVEL", "ACT_PCARE",
-  "ACT_UNDOM", "ACT_CIVIC"
+  "ACT_LEISURE", "ACT_MEDIA", "ACT_TRAVEL", "ACT_SELFCARE",
+  "ACT_UNDOM", "ACT_CIVIC", "AGEYNGST", "UNDER5", "UNDER18"
 )
 
 # Keep complete cases
@@ -335,11 +303,15 @@ library(plotly)
 # -------------------------
 # Variables
 # -------------------------
+# Combine two leisure categories
+filtered_data$ACT_LEISURE <- filtered_data$ACT_INHOME + filtered_data$ACT_OUTHOME
+filtered_data$ACT_SELFCARE <- filtered_data$ACT_PCARE + filtered_data$ACT_PHYSICAL
+
+# Select time-use variables
 time_vars <- c(
   "ACT_WORK", "ACT_CHCARE", "ACT_EDUCA",
-  "ACT_INHOME", "ACT_MEDIA", "ACT_OUTHOME",
-  "ACT_PHYSICAL", "ACT_TRAVEL", "ACT_PCARE",
-  "ACT_UNDOM", "ACT_CIVIC"
+  "ACT_LEISURE", "ACT_MEDIA", "ACT_TRAVEL", "ACT_SELFCARE",
+  "ACT_UNDOM", "ACT_CIVIC", "AGEYNGST", "UNDER5", "UNDER18"
 )
 
 # Keep data + sex, drop missing
@@ -357,11 +329,11 @@ df_time$gender <- ifelse(df_time$SEX == 1, "Male",
 df_scaled <- scale(df_time[, time_vars])
 
 # -------------------------
-# PCA (3 components)
+# PCA (4 components)
 # -------------------------
 pca_res <- prcomp(df_scaled, center = TRUE, scale. = TRUE)
 
-scores <- as.data.frame(pca_res$x[, 1:3])
+scores <- as.data.frame(pca_res$x[, 1:4])
 
 # -------------------------
 # Clustering (k-means)
@@ -382,7 +354,7 @@ plot_ly(
   y = ~PC2,
   z = ~PC3,
   color = ~gender,
-  colors = c("blue", "red", "gray"),
+  colors = c("blue", "red"),
   type = "scatter3d",
   mode = "markers"
 ) %>%
@@ -394,4 +366,15 @@ plot_ly(
       zaxis = list(title = "PC3")
     )
   )
+
+# -------------------------
+# 3D PCA plot (colored by sex)
+# -------------------------
+# Counts
+tab <- table(scores$cluster, scores$gender)
+
+# Row-wise percentages (within each cluster)
+pct <- round(prop.table(tab, margin = 1) * 100, 1)
+pct
+
 ```
