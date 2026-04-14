@@ -51,3 +51,8 @@ What are the best predictors of wage?
 | ACT_TRAVEL | Travel |
 | ACT_UNDOM | Unpaid domestic work |
 | ACT_WORK | Paid work |
+
+## Highlighted Figures
+![First two principal components explained](./figures/pca_explanation.png)
+
+![Annotated figure of clusters in PCA space](./figures/pca_clusters_annotated.png)
