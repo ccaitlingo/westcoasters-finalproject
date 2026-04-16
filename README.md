@@ -55,8 +55,3 @@ What are the best predictors of wage?
 ## Highlighted Figures
 ### EDA
 ![EDA](./figures/unpaid_domestic_work_1930_to_2018.png)
-
-### PCA
-![First two principal components explained](./figures/pca_explanation.png)
-
-![Annotated figure of clusters in PCA space](./figures/pca_clusters_annotated.png)
