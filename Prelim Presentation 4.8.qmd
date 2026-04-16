@@ -1,0 +1,100 @@
+---
+title: "Prelim Presentation 4.8"
+format: html
+---
+```{r}
+library(ipumsr)
+ddi <- read_ipums_ddi("ahtus_00001.xml")
+data <- read_ipums_micro(ddi)
+```
+```{r}
+# How time is split by gender on an average day!
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# filter by 2018
+df_2018 <- data %>%
+  filter(SAMPLE == 2018) %>% 
+  mutate(HHTYPE = as.numeric(as.factor(HHTYPE))) %>% 
+  filter(HHTYPE == 1) %>% 
+  select(-"ACT_CIVIC", -"ACT_EDUCA", -"ACT_MEDIA", -"ACT_MISSING", -"ACT_PCARE")
+
+
+# pivot! to have all activities listed under activity_category
+df_long_2018 <- df_2018 %>%
+  pivot_longer(
+    cols = starts_with("ACT_"),
+    names_to = "activity_category",
+    values_to = "minutes"
+  )  %>% 
+  mutate(
+    # Clean up the activity names (optional)
+    activity_category = gsub("ACT_", "", activity_category),
+    # Convert SEX codes to labels
+    SEX = as.numeric(as.factor(SEX)), 
+    SEX = case_when(
+      SEX == 1 ~ "Male",
+      SEX == 2 ~ "Female"
+    )
+  )
+# aggregate the activities!
+df_sum_2018 <- df_long_2018 %>%
+  group_by(SEX, activity_category) %>%
+  summarize(minutes = mean(minutes, na.rm = TRUE))
+
+#plot
+ggplot(df_sum_2018, aes(x = SEX, y = minutes, fill = activity_category)) +
+  geom_bar(stat = "identity", position="fill") +
+  labs(
+    x = "Gender",
+    y = "Proportion of Time Spent per Day",
+    fill = "Activity",
+    title = "Average Daily Time Use by Gender 2018"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+# How time is split by gender on an average day!
+
+# filter by 
+df_1975 <- data %>%
+  filter(SAMPLE == 1975) %>% 
+  mutate(HHTYPE = as.numeric(as.factor(HHTYPE))) %>% 
+  filter(HHTYPE == 1) %>% 
+  select(-"ACT_CIVIC", -"ACT_EDUCA", -"ACT_MEDIA", -"ACT_MISSING", -"ACT_PCARE")
+# pivot! to have all activities listed under activity_category
+df_long_1975 <- df_1975 %>%
+  pivot_longer(
+    cols = starts_with("ACT_"),
+    names_to = "activity_category",
+    values_to = "minutes"
+  )  %>% 
+  mutate(
+    # Clean up the activity names (optional)
+    activity_category = gsub("ACT_", "", activity_category),
+    # Convert SEX codes to labels
+    SEX = as.numeric(as.factor(SEX)), 
+    SEX = case_when(
+      SEX == 1 ~ "Male",
+      SEX == 2 ~ "Female"
+    )
+  )
+
+# aggregate the activities!
+df_sum_1975 <- df_long_1975 %>%
+  group_by(SEX, activity_category) %>%
+  summarize(minutes = mean(minutes, na.rm = TRUE))
+
+#plot
+ggplot(df_sum_1975, aes(x = SEX, y = minutes, fill = activity_category)) +
+  geom_bar(stat = "identity", position="fill") +
+  labs(
+    x = "Gender",
+    y = "Proportion of Time Spent per Day",
+    fill = "Activity",
+    title = "Average Daily Time Use by Gender 1975"
+  ) +
+  theme_minimal()
+```
