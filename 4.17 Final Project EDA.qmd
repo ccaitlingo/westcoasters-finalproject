@@ -306,28 +306,28 @@ doing unpaid domestic work
 filtered_data$ACT_LEISURE <- filtered_data$ACT_INHOME + filtered_data$ACT_OUTHOME
 filtered_data$ACT_SELFCARE <- filtered_data$ACT_PCARE + filtered_data$ACT_PHYSICAL
 
-# Select time-use variables
-time_vars <- c(
+# Select variables
+vars <- c(
   "ACT_WORK", "ACT_CHCARE", "ACT_EDUCA",
   "ACT_LEISURE", "ACT_MEDIA", "ACT_TRAVEL", "ACT_SELFCARE",
   "ACT_UNDOM", "ACT_CIVIC", "AGEYNGST", "UNDER5", "UNDER18"
 )
 
 # Keep only selected variables + sex
-df_time <- filtered_data[, c(time_vars, "SEX")]
+df_vars <- filtered_data[, c(vars, "SEX")]
 
 # Drop missing values
-df_time <- na.omit(df_time)
+df_vars <- na.omit(df_vars)
 
 # Sample data (original dataset too large)
 set.seed(123)
-df_sample <- df_time[sample(nrow(df_time), 5000), ]
+df_sample <- df_vars[sample(nrow(df_vars), 5000), ]
 
 # Create labels
 df_sample$binary_var <- ifelse(df_sample$SEX == 1, "Male", "Female")
 
-# Standardize time-use variables
-df_scaled <- scale(df_sample[, time_vars])
+# Standardize the variables
+df_scaled <- scale(df_sample[, vars])
 
 # Run PCA
 pca_res <- prcomp(df_scaled, center = TRUE, scale. = TRUE)
@@ -356,7 +356,7 @@ hc <- hclust(dist_mat, method = "ward.D2")
 k <- 5
 clusters <- cutree(hc, k = k)
 
-# Attach cluster + employement status
+# Attach cluster + sex
 pca_scores$cluster <- factor(clusters)
 pca_scores$binary_var <- df_sample$binary_var
 
