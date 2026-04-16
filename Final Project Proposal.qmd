@@ -3,7 +3,7 @@ title: "Final Project Prelim Data Analysis"
 format: html
 ---
 
-/Users/meredithhillier/Desktop/School/8. Spring 2026/MATH 244 - Intermediate Data Science/Final Project/westcoasters-finalproject
+cd "/Users/meredithhillier/Desktop/School/8. Spring 2026/MATH 244 - Intermediate Data Science/Final Project/westcoasters-finalproject"
 
 
 ```{r load_packages, warnings=FALSE}
@@ -95,12 +95,12 @@ Childcare vs. wages, separately by sex
 ```{r}
 data %>%
   filter(!is.na(WAGELM), !is.na(ACT_CHCARE)) %>%
-  filter(SAMPLE==2018, FULLTIME==1, HHTYPE==1) %>%
+  filter(SAMPLE==c(2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018), FULLTIME==1, HHTYPE==1) %>%
   ggplot(aes(x = ACT_CHCARE, y = WAGELM, color = SEX2)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
   labs(
-    title = "Relationship Between Childcare Time and Wages by Gender in 2018",
+    title = "Relationship Between Childcare Time and Wages by Gender in the 2010s",
     x = "Minutes of Childcare per Day",
     y = "Monthly Wage"
   )
@@ -130,63 +130,211 @@ data %>%
  
 # REGRESSIONS
 
-```{r cleaning}
+```{r clean_transform}
 
 # filtering and turning sex and full-time into binary variables
-data <- data %>% 
-  filter(HHTYPE == 1) %>% # filter to married with kids
-                          # isolating a group where childcare is relevant
-                          # avoid comparing people who don’t face childcare constraints
-  filter(
-    SEX %in% c(1, 2),
-    FULLTIME %in% c(0, 1)
-  ) %>% # filter out missing or dirty cases of sex and full time work
+data <- data %>%
   
-  filter(!is.na(AGE), !is.na(EDUC)) %>%
+  filter(
+    HHTYPE == 1, # filter to married with kids
+                 # isolating a group where childcare is relevant
+                 # avoid comparing people who don’t face childcare constraints
+    SEX %in% c(1, 2), # filter out missing or dirty cases of sex
+    # FULLTIME %in% c(0, 1), # filter out missing or dirty cases of full time work
+    UNDER18 > 0, # filter to individuals with kids under age of 18
+    !is.na(AGE), 
+    !is.na(EDUC),
+    FULLTIME == 1, # filter to just full-time workers
+    (EDUC == 5 | EDUC == 6), # filter to just college educated individuals
+    WAGELM > 0, # remove non-earners
+    ACT_CHCARE >= 0,
+    ACT_PCARE >= 0
+  ) %>% 
+  
   mutate(
+    across(starts_with("ACT_"), ~ .x / 60), # convert all time use vars to hours
     female = ifelse(SEX == 2, 1, 0),
     female = factor(female),
-    FULLTIME = factor(FULLTIME)
-  ) %>%
+    FULLTIME = factor(FULLTIME), 
+    log_wage = log(WAGELM + 1) # add column for log wage in case it becomes interesting
+  )
   
-  filter(FULLTIME == 1)
-
-# filter to just 2018 data
-data2018 <- data %>% filter(SAMPLE==2018, !is.na(WAGELM), !is.na(ACT_CHCARE))
+  
+# filter to just 2010s data
+data2010s <- data %>% 
+  filter(SAMPLE > 2009)
 
 ```
 
-```{r plots}
+```{r plots, include=FALSE}
 
 # plots
-data2018 %>% select(WAGELM, ACT_CHCARE, WKHRS) %>% pairs
+#data2010s %>% select(WAGELM, ACT_CHCARE, WKHRS) %>% pairs
 
-data2018 %>%
+data2010s %>%
   ggplot(aes(x = ACT_CHCARE, y = WAGELM, color = SEX2)) +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
     labs(
-      title = "Relationship Between Childcare Time and Wages by Gender in 2018 for Individuals Who are Married with Kids",
-      x = "Minutes of Childcare per Day",
+      title = "Relationship Between Childcare Time and Wages by Gender in 2010s for Individuals Who are Married with Kids",
+      x = "Hours of Childcare per Day",
       y = "Monthly Wage"
     ) 
+
+data2010s %>%
+  mutate(chcare_bin = ntile(ACT_CHCARE, 5)) %>%
+  group_by(chcare_bin, female) %>%
+  summarise(
+    avg_wage = mean(WAGELM, na.rm = TRUE),
+    avg_chcare = mean(ACT_CHCARE)
+  ) %>%
+  ggplot(aes(x = avg_chcare, y = avg_wage, color = female)) +
+  geom_line() +
+  geom_point() +
+    labs(
+      title = "Relationship Between Childcare Time and Wages by Gender in 2010s for Individuals Who are Married with Kids",
+      x = "Average Hours of Childcare per Day",
+      y = "Average Monthly Wage"
+    ) 
+
+data2010s %>%
+  mutate(chcare_cat = cut(ACT_CHCARE, breaks = 5)) %>%
+  ggplot(aes(x = chcare_cat, y = WAGELM, fill = female)) +
+  geom_boxplot() +
+    labs(
+      title = "Relationship Between Childcare Time and Wages by Gender in 2010s for Individuals Who are Married with Kids",
+      x = "Average Hours of Childcare per Day",
+      y = "Average Monthly Wage"
+    ) 
 ```
+
+```{r plots2, include=FALSE}
+
+data2010s %>%
+  ggplot(aes(x = ACT_CHCARE, y = ACT_PCARE, color = SEX2)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    labs(
+      title = "Relationship Between Childcare Time and Personal Care by Gender in 2010s for Individuals Who are Married with Kids",
+      x = "Hours of Childcare per Day",
+      y = "Hours of Personal Care per Day"
+    ) 
+
+data2010s %>%
+  mutate(chcare_bin = ntile(ACT_CHCARE, 5)) %>%
+  group_by(chcare_bin, female) %>%
+  summarise(
+    avg_wage = mean(ACT_PCARE, na.rm = TRUE),
+    avg_chcare = mean(ACT_CHCARE)
+  ) %>%
+  ggplot(aes(x = avg_chcare, y = avg_wage, color = female)) +
+  geom_line() +
+  geom_point() +
+    labs(
+      title = "Relationship Between Childcare Time and Wages by Gender in 2010s for Individuals Who are Married with Kids",
+      x = "Average Hours of Childcare per Day",
+      y = "Average Monthly Wage"
+    ) 
+
+data2010s %>%
+  mutate(chcare_cat = cut(ACT_CHCARE, breaks = 5)) %>%
+  ggplot(aes(x = chcare_cat, y = ACT_PCARE, fill = female)) +
+  geom_boxplot() +
+    labs(
+      title = "Relationship Between Childcare Time and Wages by Gender in 2010s for Individuals Who are Married with Kids",
+      x = "Average Hours of Childcare per Day",
+      y = "Average Monthly Wage"
+    ) 
+```
+
+
+```{r plots}
+
+# plots
+#data2010s %>% select(WAGELM, ACT_CHCARE, WKHRS) %>% pairs
+
+data2010s %>%
+  ggplot(aes(x = ACT_CHCARE, y = ACT_WORK, color = SEX2)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    labs(
+      title = "Time Spent on Paid Work vs. Time Spent on Childcare by Gender",
+      subtitle = "In the 2010s for Individuals who are College-Educated and Married with Kids Under 18",
+      x = "Hours of Childcare per Day",
+      y = "Hours of Paid Work per Day"
+    ) 
+
+data2010s %>%
+  mutate(chcare_bin = ntile(ACT_CHCARE, 5)) %>%
+  group_by(chcare_bin, female) %>%
+  summarise(
+    avg_wage = mean(ACT_WORK, na.rm = TRUE),
+    avg_chcare = mean(ACT_CHCARE)
+  ) %>%
+  ggplot(aes(x = avg_chcare, y = avg_wage, color = female)) +
+  geom_line() +
+  geom_point() +
+    labs(
+      title = "Time Spent on Paid Work vs. Time Spent on Childcare by Gender",
+      subtitle = "In the 2010s for Individuals who are College-Educated and Married with Kids Under 18",
+      x = "Average Hours of Childcare per Day",
+      y = "Average Hours of Paid Work per Day"
+    ) 
+
+data2010s %>%
+  mutate(chcare_cat = cut(ACT_CHCARE, breaks = 5)) %>%
+  ggplot(aes(x = chcare_cat, y = ACT_WORK, fill = female)) +
+  geom_boxplot() +
+    labs(
+      title = "Time Spent on Paid Work vs. Time Spent on Childcare by Gender",
+      subtitle = "In the 2010s for Individuals who are College-Educated and Married with Kids Under 18",
+      x = "Average Hours of Childcare per Day",
+      y = "Average Hours of Paid Work per Day"
+    ) 
+
+```
+
+
+Base regression
+
+```{r}
+base_model <- lm(ACT_WORK ~ ACT_CHCARE*female, data2010s)
+summary(base_model)
+```
+
+```{r}
+base_model2 <- lm(ACT_WORK ~ ACT_CHCARE*female + ACT_PCARE + ACT_EDUCA + ACT_UNDOM + ACT_CIVIC + ACT_OUTHOME + ACT_PHYSICAL + ACT_INHOME + ACT_MEDIA + ACT_TRAVEL + ACT_MISSING, data2010s)
+summary(base_model2)
+```
+
+
+
+
+Base regression with controls
+
+```{r}
+base_model_controls <- lm(ACT_WORK ~ ACT_CHCARE*female + AGE + EDUC + WKHRS + UNDER18 + AGEYNGST + URBAN, data2010s)
+summary(base_model_controls)
+```
+
+
+
 
 Is childcare penalized more for women, controlling for employment intensity?
 
 ```{r}
-baseline_model <- lm(WAGELM ~ ACT_CHCARE*female + AGE + EDUC, data2018)
+baseline_model <- lm(WAGELM ~ ACT_CHCARE*female + ACT_UNDOM*female + AGE + EDUC, data2010s)
 summary(baseline_model)
 ```
 
 
 ```{r}
-interaction_model <- lm(WAGELM ~ ACT_CHCARE*SEX*FULLTIME, data2018)
+interaction_model <- lm(WAGELM ~ ACT_CHCARE*SEX*FULLTIME, data2010s)
 summary(interaction_model)
 ```
 
 ```{r}
-interaction_model2 <- lm(WAGELM ~ ACT_CHCARE*SEX + ACT_CHCARE*FULLTIME, data2018)
+interaction_model2 <- lm(WAGELM ~ ACT_CHCARE*SEX + ACT_CHCARE*FULLTIME, data2010s)
 summary(interaction_model2)
 ```
 
