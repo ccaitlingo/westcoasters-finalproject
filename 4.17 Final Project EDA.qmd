@@ -4,8 +4,6 @@ author: "West Coasters"
 format: html
 ---
 
-
-
 # Set Up
 
 ```{r load_packages, warning=FALSE, message=FALSE}
@@ -30,7 +28,9 @@ data <- read_ipums_micro(ddi)
   * Paid Work
   * Considered Personal Care (nothing significant) 
 
-We did several multiple linear regressions with wage as the outcome variable. We expected wages to have significant results, when explanatory variables such as gender, childcare, and an interaction term of $(gender \times childcare)$ were included. We expected there to be a larger wage difference from the $(gender \times childcare)$ interaction term. However, we noticed small and insignificant coefficients for this regression. We’d expect time spent on childcare to be greater for women than men. Further, there is a tradeoff between time spent at paid work versus time spent on childcare. So, to interrogate this idea of the time tradeoff, we ran a subsequent regression with wage as the outcome variable. Instead it includes paid work and childcare as explanatory variables, with the $(gender \times childcare) interaction term. Here, we found significant results and a clear visual relationship of more time spent on childcare meant less time spent on paid work. This upheld our expectations, as both women and men exhibited this relationship. 
+We did several multiple linear regressions with wage as the outcome variable. We expected wages to have significant results, when explanatory variables such as gender, childcare, and an interaction term of $(gender \times childcare)$ were included. We expected there to be a larger wage difference from the $(gender \times childcare)$ interaction term. However, we noticed small and insignificant coefficients for this regression. We’d expect time spent on childcare to be greater for women than men. 
+
+Further, there is a tradeoff between time spent at paid work versus time spent on childcare. So, to interrogate this idea of the time tradeoff, we ran a subsequent regression with time spent on paid work as the outcome variable. This regression includes gender and childcare as explanatory variables, with the $(gender \times childcare)$ interaction term. Here, we found significant results and a clear visual relationship of more time spent on childcare meant less time spent on paid work. This upheld our expectations, as both women and men exhibited this relationship. 
 
 
 ## What are your key explanatory variables? 
@@ -40,6 +40,11 @@ We did several multiple linear regressions with wage as the outcome variable. We
   * Time spent on unpaid domestic work
   * Time spent on paid work
   * Education: 1 if EDUC == 5 or 6 (college graduate), 0 if 1 through 4
+
+
+## Research Questions
+
+Is there a gender difference in how individuals allocate their time? How does the tradeoff between time spent at paid work versus time spent on childcare differ by gender? Ultimately, the question of interest is how do demographics and expected responsibilities affect time use.
 
 
 
@@ -77,6 +82,7 @@ ACT_PCARE and ACT_PHYSICAL, which represented personal care and physical activit
 ## Filtering for PCA Visualization 
 
 ```{r}
+# data with filters needed for PCA visualizations (Figures 3 and 4)
 filtered_data <- data %>%
   filter(
     CIVSTAT == 1,
@@ -93,6 +99,8 @@ filtered_data <- data %>%
 ```
 
 ## Filtering for Regression Model
+
+This is the primary data cleaning and transforming done. 
 
 ```{r clean_transform}
 
