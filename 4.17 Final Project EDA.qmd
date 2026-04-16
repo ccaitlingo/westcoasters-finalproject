@@ -418,6 +418,8 @@ dimensions instead of two. This allows us to visualize the third PC.
 **PC3:** Time spent on leisure, time spent on travel
 
 ```{r}
+library(plotly)
+
 # 3D PCA plot
 plot_ly(
   pca_scores,
