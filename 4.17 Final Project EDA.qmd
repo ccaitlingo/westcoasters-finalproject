@@ -170,7 +170,7 @@ data2010s <- datareg %>%
 
 # Summary Tables
 
-```{r}
+```{r time_vars_summary}
 # time variables
 vars <- c("ACT_CHCARE", "ACT_CIVIC", "ACT_EDUCA", "ACT_INHOME", "ACT_MEDIA", "ACT_MISSING", "ACT_OUTHOME", "ACT_PCARE", "ACT_PHYSICAL", "ACT_TRAVEL", "ACT_UNDOM", "ACT_WORK")
 
@@ -184,6 +184,19 @@ summary_stats <- tibble(
 )
 
 summary_stats
+```
+
+```{r categorical_vars_summary}
+
+filtered_data %>%
+  # Turn the numbers into readable labels
+  mutate(SEX = factor(SEX, levels = c(1, 2), labels = c("Male", "Female"))) %>%
+  # Group and calculate
+  group_by(SEX) %>%
+  summarize(
+    count = n(),
+    percentage = (n() / nrow(data2010s)) * 100
+  )
 ```
 
 # Exploratory Data Analysis
