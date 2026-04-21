@@ -168,6 +168,24 @@ data2010s <- datareg %>%
 
 `https://github.com/ccaitlingo/westcoasters-finalproject/blob/main/README.md`
 
+# Summary Tables
+
+```{r}
+# time variables
+vars <- c("ACT_CHCARE", "ACT_CIVIC", "ACT_EDUCA", "ACT_INHOME", "ACT_MEDIA", "ACT_MISSING", "ACT_OUTHOME", "ACT_PCARE", "ACT_PHYSICAL", "ACT_TRAVEL", "ACT_UNDOM", "ACT_WORK")
+
+means <- filtered_data %>% summarise(across(all_of(vars), ~mean(.x, na.rm = TRUE))) %>% unlist()
+sds   <- filtered_data %>% summarise(across(all_of(vars), ~sd(.x, na.rm = TRUE)))   %>% unlist()
+
+summary_stats <- tibble(
+  variable = vars,
+  mean = means,
+  standard_deviation = sds
+)
+
+summary_stats
+```
+
 # Exploratory Data Analysis
 
 ## Motivation
