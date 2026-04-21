@@ -174,8 +174,8 @@ data2010s <- datareg %>%
 # time variables
 vars <- c("ACT_CHCARE", "ACT_CIVIC", "ACT_EDUCA", "ACT_INHOME", "ACT_MEDIA", "ACT_MISSING", "ACT_OUTHOME", "ACT_PCARE", "ACT_PHYSICAL", "ACT_TRAVEL", "ACT_UNDOM", "ACT_WORK")
 
-means <- filtered_data %>% summarise(across(all_of(vars), ~mean(.x, na.rm = TRUE))) %>% unlist()
-sds   <- filtered_data %>% summarise(across(all_of(vars), ~sd(.x, na.rm = TRUE)))   %>% unlist()
+means <- data2010s %>% summarise(across(all_of(vars), ~mean(.x, na.rm = TRUE))) %>% unlist()
+sds   <- data2010s %>% summarise(across(all_of(vars), ~sd(.x, na.rm = TRUE)))   %>% unlist()
 
 summary_stats <- tibble(
   variable = vars,
@@ -188,11 +188,8 @@ summary_stats
 
 ```{r categorical_vars_summary}
 
-filtered_data %>%
-  # Turn the numbers into readable labels
-  mutate(SEX = factor(SEX, levels = c(1, 2), labels = c("Male", "Female"))) %>%
-  # Group and calculate
-  group_by(SEX) %>%
+data2010s %>%
+  group_by(female) %>%
   summarize(
     count = n(),
     percentage = (n() / nrow(data2010s)) * 100
@@ -206,7 +203,7 @@ filtered_data %>%
 ### Figure 1: Unpaid Domestic Work by Sex
 
 This visualization depicts the average hours per day that each sex (male
-or female) spends performing unpaid domestic work, from 1930 to 2018.
+or female) spends performing unpaid domestic work, from 1975 to 2018.
 Since our main outcome variable is time spent on **paid work**, it is
 also important to complement that variable by considering time spent on
 **unpaid work**, to get the full picture.
@@ -215,6 +212,8 @@ We can see that over time, the gap between male and female has shrunk.
 However, a disparity still remains: even our most current data from 2018
 shows that males on average spend 1.57 hours on unpaid domestic work,
 while females spend 2.72 hours.
+
+Note that there are fewer observations near 20
 
 ```{r Figure1}
 # Unpaid Domestic Work by Sex (1930-2018)
@@ -230,7 +229,7 @@ ggplot(summary_data, aes(x = YEAR, y = avg_domestic_hours, color = sex_label)) +
   geom_line(size = 1) +
   geom_point() +
   labs(
-    title = "Unpaid Domestic Work by Sex (1930 - 2018)",
+    title = "Unpaid Domestic Work by Sex (1975 - 2018)",
     x = "Year",
     y = "Average Hours per Day",
     color = "Sex"
@@ -292,17 +291,32 @@ df_sum <- df_long %>%
   group_by(SEX, activity_category) %>%
   summarize(minutes = mean(minutes, na.rm = TRUE))
 
+sample_sizes <- df %>%
+  mutate(SEX_label = ifelse(as.numeric(as.factor(SEX)) == 1, "Male", "Female")) %>%
+  group_by(SEX_label) %>%
+  summarize(n = n()) %>%
+  # Create a combined label like "Male (n=500)"
+  mutate(label_with_n = paste0(SEX_label, "\n(n = ", scales::comma(n), ")"))
 
 #plot
 ggplot(df_sum, aes(x = SEX, y = minutes, fill = activity_category)) +
   geom_bar(stat = "identity", position = "fill") +
+  # Add the labels at the top
+  geom_text(
+    data = sample_sizes, 
+    aes(x = SEX_label, y = 1.02, label = paste0("n = ", scales::comma(n))), 
+    inherit.aes = FALSE, # This ignores the 'fill' requirement from the main ggplot
+    vjust = 0,            # Aligns text above the point
+  ) +
   labs(
     x = "Gender",
     y = "Proportion of Time Spent per Day",
     fill = "Activity",
     title = "Average Daily Time Use by Sex 2010-2018"
   ) +
-  theme_minimal() 
+  # Expand limits slightly so the text doesn't get cut off
+  expand_limits(y = 1.1) + 
+  theme_minimal()
 ```
 
 ### Figure 3: Clustering in 2D
@@ -474,7 +488,7 @@ work relative to time spent on childcare.
 ```{r Figure5, warning=FALSE, message=FALSE}
 
 data2010s %>%
-  mutate(chcare_bin = ntile(ACT_CHCARE, 5)) %>%
+  mutate(chcare_bin = ntile(ACT_CHCARE, 10)) %>%
   group_by(chcare_bin, female) %>%
   summarise(
     avg_wage = mean(ACT_WORK, na.rm = TRUE),
