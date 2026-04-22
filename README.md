@@ -1,7 +1,7 @@
 # West Coasters Final Project
 
 ## Question
-What are the best predictors of wage?
+What are the best predictors of time spent on paid work?
 
 ## Codebook
 | Variable | Description | Categorial Code |
