@@ -1,7 +1,7 @@
 # West Coasters Final Project
 
 ## Question
-What are the best predictors of time spent on paid work?
+Is there a gender difference in how individuals allocate their time? How does the trade-off between time spent at paid work versus time spent on childcare differ by gender? Ultimately, the question of interest is how do demographics and expected responsibilities affect time use.
 
 ## Codebook
 | Variable | Description | Categorial Code |
