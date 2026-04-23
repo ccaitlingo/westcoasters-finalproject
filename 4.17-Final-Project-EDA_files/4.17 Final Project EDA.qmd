@@ -505,3 +505,21 @@ data2010s %>%
     ) 
 
 ```
+
+
+
+# First Regressions
+
+Base regression
+
+```{r}
+linreg <- lm(ACT_WORK ~ ACT_CHCARE*female, data2010s)
+summary(linreg)
+```
+
+Base regression with controls
+
+```{r}
+linreg_controls <- lm(ACT_WORK ~ ACT_CHCARE*female + AGE + EDUC + WKHRS + UNDER18 + AGEYNGST + URBAN, data2010s)
+summary(linreg_controls)
+```
