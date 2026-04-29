@@ -1,0 +1,625 @@
+---
+title: "Final Project Presentation Working File"
+author: "West Coasters"
+format: html
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+This is just the EDA Final File with extra work at the bottom on the actual modeling process. This is essentially our master working file with everything we need. A new file should and will be created for our cleaned up presentation. 
+
+# Set Up
+
+```{r load_packages, warning=FALSE, message=FALSE}
+# R packages
+library(ipumsr)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(reticulate)
+```
+
+```{python}
+import pandas as pd
+import numpy as np
+```
+
+```{r load_data, warning=FALSE, message=FALSE}
+ddi <- read_ipums_ddi("../data/ahtus_00001.xml")
+data <- read_ipums_micro(ddi)
+```
+
+# Questions: Exploring the Data
+
+## What is your outcome variable(s)? How well does it measure the outcome you are interested in? How does it relate to your expectations?
+
+Our primary outcome variable is time spent on paid work. However, we
+initially ran regressions with wage as the outcome variable and found
+statistically insignificant results.
+
+We did several multiple linear regressions with wage as the outcome
+variable. We expected wages to have significant results, when
+explanatory variables such as gender, childcare, and an interaction term
+of $(gender \times childcare)$ were included. We expected there to be a
+larger wage difference from the $(gender \times childcare)$ interaction
+term. However, we noticed small and insignificant coefficients for this
+regression. We’d expect time spent on childcare to be greater for women
+than men.
+
+Further, there is a trade-off between time spent at paid work versus
+time spent on childcare. So, to interrogate this idea of the time
+trade-off, we ran a subsequent regression with time spent on paid work
+as the outcome variable. This regression includes gender and childcare
+as explanatory variables, with the $(gender \times childcare)$
+interaction term. Here, we found significant results and a clear visual
+relationship of more time spent on childcare meant less time spent on
+paid work. This upheld our expectations, as both women and men exhibited
+this relationship.
+
+## What are your key explanatory variables?
+
+-   Gender
+-   Time spent on childcare
+-   Time spent on unpaid domestic work
+
+## Research Questions
+
+Is there a gender difference in how individuals allocate their time? How
+does the trade-off between time spent at paid work versus time spent on
+childcare differ by gender? Ultimately, the question of interest is how
+do demographics and expected responsibilities affect time use.
+
+# Questions: Data Wrangling and Transformation
+
+## What data cleaning did you do?
+
+-   Converted the time variables from minutes to hours for easy
+    interpretation
+-   Removed rows with NAs
+-   Other than that, the diary entry data was well cleaned and coded by
+    IPUMs! 🙂
+-   We focus on 2010-2018 samples, since historical data prior to then
+    is sporadic and requires time series methods.
+
+## How did you wrangle the data?
+
+We applied the following filters for the linear regression:
+
+-   Married with kids: HHTYPE == 1
+-   Child under 18: UNDER18 1 through 10
+-   Post-college education: EDUC == 5 or 6
+-   Full-time workers: FULLTIME == 1 (Only comparing men and women who
+    work full-time)
+
+Filtering was slightly less strict for Figures 1 through 4 (exploratory
+visualizations).
+
+## Are you deciding to exclude any observations? If so, why?
+
+Yes, but this was mostly the data wrangling step. We removed any missing
+values or NAs. For some visualizations (Figure 2) a few of the time use
+variables were omitted to better depict explanatory variables, rather
+than activities we’re less interested in: such as travel, media
+consumption, physical activity, etc.
+
+## Did you have to create any new variables from existing variables? If so, how and why?
+
+Yes, when performing PCA on the time variables, we decided to combine a
+few variables to increase interpretability. ACT_INHOME and ACT_OUTHOME
+represented two types of leisure, so were combined into ACT_LEISURE.
+ACT_PCARE and ACT_PHYSICAL, which represented personal care and physical
+activity, were combined into ACT_SELFCARE since physical activity
+(exercise) is also a form of personal/self care.
+
+We also converted several variables into factors, to be used as
+categorical variables in our visualizations and preliminary analysis.
+For instance, SEX (formerly coded as 1 and 2) was re-coded into a binary
+FEMALE categorical variable, 0 for men and 1 for female.
+
+# Data Cleaning
+
+This is the primary data cleaning and transforming done.
+
+## Filtering for Visualizations 1-4
+
+```{r}
+filtered_data <- data %>%
+  filter(
+    HHTYPE == 1, # filter to married with kids
+                 # isolating a group where childcare is relevant
+                 # avoid comparing people who don’t face childcare constraints
+    UNDER18 > 0, # filter to individuals with kids under age of 18
+    AGE >= 22 & AGE <= 40, # between the ages of 22 and 40
+    EDUC %in% c(5, 6), # college educated
+    AGEYNGST >= 0 & AGEYNGST <= 18, # youngest child is between age 0 and 18
+    SEX %in% c(1, 2), # male or female
+    !is.na(AGE), 
+    !is.na(EDUC)
+  ) %>%
+  mutate(
+    sex_label = ifelse(SEX == 1, "Male", "Female")
+  )
+```
+
+## Filtering for Visualization 5 (Regression Model)
+
+```{r clean_transform}
+
+# filtering and turning sex and full-time into binary variables
+datareg <- filtered_data %>%
+  
+  filter(
+    (EDUC == 5 | EDUC == 6), # filter to just college educated individuals
+    FULLTIME == 1, # filter to just full-time workers
+    WAGELM > 0, # remove non-earners
+    ACT_CHCARE >= 0, # filter out missing or unclean data
+    ACT_PCARE >= 0 # filter out missing or unclean data
+  ) %>% 
+  
+  mutate(
+    across(starts_with("ACT_"), ~ .x / 60), # convert all time use vars to hours
+    female = ifelse(SEX == 2, 1, 0),
+    female = factor(female),
+    FULLTIME = factor(FULLTIME), 
+    log_wage = log(WAGELM + 1) # add column for log wage in case it becomes interesting
+  )
+  
+  
+# filter to just 2010s data
+data2010s <- datareg %>% 
+  filter(SAMPLE > 2009)
+
+```
+
+# Codebook
+
+`https://github.com/ccaitlingo/westcoasters-finalproject/blob/main/README.md`
+
+# Summary Tables
+
+```{r time_vars_summary}
+# time variables
+vars <- c("ACT_CHCARE", "ACT_CIVIC", "ACT_EDUCA", "ACT_INHOME", "ACT_MEDIA", "ACT_MISSING", "ACT_OUTHOME", "ACT_PCARE", "ACT_PHYSICAL", "ACT_TRAVEL", "ACT_UNDOM", "ACT_WORK")
+
+means <- data2010s %>% summarise(across(all_of(vars), ~mean(.x, na.rm = TRUE))) %>% unlist()
+sds   <- data2010s %>% summarise(across(all_of(vars), ~sd(.x, na.rm = TRUE)))   %>% unlist()
+
+summary_stats <- tibble(
+  variable = vars,
+  mean = means,
+  standard_deviation = sds
+)
+
+summary_stats
+```
+
+```{r categorical_vars_summary}
+
+data2010s %>%
+  group_by(female) %>%
+  summarize(
+    count = n(),
+    percentage = (n() / nrow(data2010s)) * 100
+  )
+```
+
+# Exploratory Data Analysis
+
+## Motivation
+
+### Figure 1: Unpaid Domestic Work by Sex
+
+This visualization depicts the average hours per day that each sex (male
+or female) spends performing unpaid domestic work, from 1975 to 2018.
+Since our main outcome variable is time spent on **paid work**, it is
+also important to complement that variable by considering time spent on
+**unpaid work**, to get the full picture.
+
+We can see that over time, the gap between male and female has shrunk.
+However, a disparity still remains: even our most current data from 2018
+shows that males on average spend 1.57 hours on unpaid domestic work,
+while females spend 2.72 hours.
+
+Note that there are fewer observations near 20
+
+```{r Figure1}
+# Unpaid Domestic Work by Sex (1930-2018)
+
+# Average hours by year and sex
+summary_data <- filtered_data %>%
+  group_by(YEAR, sex_label) %>%
+  mutate(ACT_UNDOM_HRS = ACT_UNDOM / 60) %>%
+  summarise(avg_domestic_hours = mean(ACT_UNDOM_HRS, na.rm = TRUE), .groups = "drop")
+
+# Line plot
+ggplot(summary_data, aes(x = YEAR, y = avg_domestic_hours, color = sex_label)) +
+  geom_line(size = 1) +
+  geom_point() +
+  labs(
+    title = "Unpaid Domestic Work by Sex (1975 - 2018)",
+    x = "Year",
+    y = "Average Hours per Day",
+    color = "Sex"
+  ) +
+  theme_minimal() +
+  scale_color_manual(values = c("Male" = "steelblue", "Female" = "salmon"))
+
+# Note for 2018
+# 2.72 hrs for female
+# 1.57 hrs for male
+```
+
+### Figure 2: Average Daily Time Use by Sex
+
+This visualization breaks down the 24 hours in a day into the proportion
+of time spent on various activities, averaged across the years
+2010-2018. One of the time activities is our outcome variable, time
+spent on **paid work**, while others include time spent performing
+childcare, personal care, unpaid domestic work, and leisure.
+
+```{r Figure2, message=FALSE, warning=FALSE}
+# How time is split by gender on an average day!
+
+# data wrangling
+df <- filtered_data %>%
+  filter(SAMPLE >= 2010 ) %>%  
+  mutate(HHTYPE = as.numeric(as.factor(HHTYPE))) %>%
+  mutate(
+    Leisure = ACT_INHOME + ACT_OUTHOME
+  ) %>% 
+  select(-"ACT_CIVIC", -"ACT_EDUCA", -"ACT_MEDIA", -"ACT_MISSING",-"ACT_INHOME", -"ACT_OUTHOME", -"ACT_TRAVEL", -"ACT_PHYSICAL" )
+# pivot! to have all activities listed under activity_category
+df_long <- df %>%
+  pivot_longer(
+    cols = starts_with("ACT_") | starts_with("Leisure"),
+    names_to = "activity_category",
+    values_to = "minutes"
+  )  %>% 
+  mutate(
+    # Clean up the activity names (optional)
+    activity_category = gsub("ACT_", "", activity_category),
+    activity_category = case_when(
+      activity_category == "CHCARE" ~ "Childcare",
+      activity_category == "PCARE"  ~ "Personal Care",
+      activity_category == "UNDOM"  ~ "Unpaid Domestic Work",
+      activity_category == "WORK"   ~ "Paid Work",
+      TRUE ~ activity_category
+    ),
+    # Convert SEX codes to labels
+    SEX = as.numeric(as.factor(SEX)), 
+    SEX = case_when(
+      SEX == 1 ~ "Male",
+      SEX == 2 ~ "Female"
+    )
+  )
+
+# aggregate the activities!
+df_sum <- df_long %>%
+  group_by(SEX, activity_category) %>%
+  summarize(minutes = mean(minutes, na.rm = TRUE))
+
+sample_sizes <- df %>%
+  mutate(SEX_label = ifelse(as.numeric(as.factor(SEX)) == 1, "Male", "Female")) %>%
+  group_by(SEX_label) %>%
+  summarize(n = n()) %>%
+  # Create a combined label like "Male (n=500)"
+  mutate(label_with_n = paste0(SEX_label, "\n(n = ", scales::comma(n), ")"))
+
+#plot
+ggplot(df_sum, aes(x = SEX, y = minutes, fill = activity_category)) +
+  geom_bar(stat = "identity", position = "fill") +
+  # Add the labels at the top
+  geom_text(
+    data = sample_sizes, 
+    aes(x = SEX_label, y = 1.02, label = paste0("n = ", scales::comma(n))), 
+    inherit.aes = FALSE, # This ignores the 'fill' requirement from the main ggplot
+    vjust = 0,            # Aligns text above the point
+  ) +
+  labs(
+    x = "Gender",
+    y = "Proportion of Time Spent per Day",
+    fill = "Activity",
+    title = "Average Daily Time Use by Sex 2010-2018"
+  ) +
+  # Expand limits slightly so the text doesn't get cut off
+  expand_limits(y = 1.1) + 
+  theme_minimal()
+```
+
+### Figure 3: Clustering in 2D
+
+This visualization uses hierarchical clustering to find groupings in
+**PCA space**. We discovered that data points in clusters 2 and 3, which
+represent the top right of the PCA space, are 69.8% female. This tells
+us that females are more associated with having younger children, and
+spending more time on unpaid domestic work and personal care!
+
+**Interpreting Principal Components (PCS):** See the output summary
+generated by the code, where the first four PCs are defined. Each PC is
+a vector that represents a combination of factors. The most influential
+factors that make up each PC are described as follows.
+
+**PCA 1:** Time spent on childcare, age of the youngest child, and the
+amount of children under 5
+
+**PCA 2:** Time spent at work, time spent on self care, and time spent
+doing unpaid domestic work
+
+```{r Figure3, warning=FALSE, message=FALSE}
+
+# Combine two leisure categories
+filtered_data$ACT_LEISURE <- filtered_data$ACT_INHOME + filtered_data$ACT_OUTHOME
+filtered_data$ACT_SELFCARE <- filtered_data$ACT_PCARE + filtered_data$ACT_PHYSICAL
+
+# Select variables
+vars <- c(
+  "ACT_WORK", "ACT_CHCARE", "ACT_EDUCA",
+  "ACT_LEISURE", "ACT_MEDIA", "ACT_TRAVEL", "ACT_SELFCARE",
+  "ACT_UNDOM", "ACT_CIVIC", "AGEYNGST", "UNDER5", "UNDER18"
+)
+
+# Keep only selected variables + sex
+df_vars <- filtered_data[, c(vars, "SEX")]
+
+# Drop missing values
+df_vars <- na.omit(df_vars)
+
+# Sample data (original dataset too large)
+set.seed(123)
+df_sample <- df_vars[sample(nrow(df_vars), 5000), ]
+
+# Create labels
+df_sample$binary_var <- ifelse(df_sample$SEX == 1, "Male", "Female")
+
+# Standardize the variables
+df_scaled <- scale(df_sample[, vars])
+
+# Run PCA
+pca_res <- prcomp(df_scaled, center = TRUE, scale. = TRUE)
+
+# Optional scree plot (tells us to use 4 PCs for optimal analysis)
+eig_vals <- pca_res$sdev^2
+var_explained <- eig_vals / sum(eig_vals)
+
+plot(var_explained, type = "b",
+     xlab = "Principal Component",
+     ylab = "Proportion of Variance Explained",
+     main = "Scree Plot (PCA)",
+     pch = 16)
+
+# View the principal components
+pca_res$rotation[, 1:4]
+
+# Extract first 4 PCs
+pca_scores <- as.data.frame(pca_res$x[, 1:4])
+
+# Hierarchical clustering on PCA space
+dist_mat <- dist(pca_scores)
+hc <- hclust(dist_mat, method = "ward.D2")
+
+# Cut into clusters
+k <- 5
+clusters <- cutree(hc, k = k)
+
+# Attach cluster + sex
+pca_scores$cluster <- factor(clusters)
+pca_scores$binary_var <- df_sample$binary_var
+
+# -------------------------
+# Plot 1: PCA Space Colored by Sex
+# -------------------------
+plot(pca_scores$PC1, pca_scores$PC2,
+     col = ifelse(pca_scores$binary_var == "Male", "blue", "red"),
+     pch = 1,
+     xlab = "Principal Component 1",
+     ylab = "Principal Component 2",
+     main = "PCA Space Colored by Sex")
+
+legend("topright",
+       legend = c("Male", "Female"),
+       col = c("blue", "red"),
+       pch = 16,
+       bty = "n")
+
+# -------------------------
+# Plot 2: Clusters in PCA Space
+# -------------------------
+cluster_colors <- c("#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#F0E442")
+
+plot(pca_scores$PC1, pca_scores$PC2,
+     col = cluster_colors[pca_scores$cluster],
+     pch = ifelse(pca_scores$binary_var == "Male", 1, 1),
+     xlab = "Principal Component 1",
+     ylab = "Principal Component 2",
+     main = "Clusters in PCA Space")
+
+legend("topright",
+       legend = c("Cluster 1","Cluster 2","Cluster 3","Cluster 4", "Cluster 5"),
+       col = cluster_colors,
+       pch = 16,
+       bty = "n")
+
+# -------------------------
+# Table
+# -------------------------
+# Counts
+tab <- table(pca_scores$cluster, pca_scores$binary_var)
+
+# Row-wise percentages (within cluster)
+pct <- round(prop.table(tab, margin = 1) * 100, 1)
+pct
+
+# Group clusters 2+3 (representing the top right of graph) and 1+4+5
+grp <- ifelse(pca_scores$cluster %in% c(2,3), "C2+3", "C1+4+5")
+pct_grp <- round(prop.table(table(grp, pca_scores$binary_var), 1) * 100, 1)
+pct_grp
+```
+
+### Figure 4: Clustering in 3D
+
+This visualization shows the same clustering in PCA space, but in three
+dimensions instead of two. This allows us to visualize the third PC.
+
+**PC3:** Time spent on leisure, time spent on travel
+
+```{r Figure4, warning=FALSE, message=FALSE}
+library(plotly)
+
+# 3D PCA plot
+plot_ly(
+  pca_scores,
+  x = ~PC1,
+  y = ~PC2,
+  z = ~PC3,
+  color = ~as.factor(cluster),
+  colors = cluster_colors,
+  type = "scatter3d",
+  mode = "markers"
+)
+```
+
+## Preliminary Analysis
+
+### Figure 5: Exploring the Research Question
+
+In this visualization, we begin to observe the time trade-off outlined
+in our research question and hypothesis - there appears to be an
+opportunity cost associated with time spent at paid work versus time
+spent on childcare. There's not an apparent difference between gender,
+however there's a substantial split when time spent on childcare is less
+than 1 hour a day. While this could be noise, maybe we could interrogate
+this further in a regression. Otherwise, the gender split is minimal!
+Both exhibit a clear inverse relationship between time spent on paid
+work relative to time spent on childcare.
+
+```{r Figure5, warning=FALSE, message=FALSE}
+
+data2010s %>%
+  mutate(chcare_bin = ntile(ACT_CHCARE, 10)) %>%
+  group_by(chcare_bin, female) %>%
+  summarise(
+    avg_wage = mean(ACT_WORK, na.rm = TRUE),
+    avg_chcare = mean(ACT_CHCARE)
+  ) %>%
+  ggplot(aes(x = avg_chcare, y = avg_wage, color = female)) +
+  geom_line() +
+  geom_point() +
+    labs(
+      title = "Time Spent on Paid Work vs. Time Spent on Childcare by Gender",
+      subtitle = "In the 2010s for Individuals who are College-Educated and Married with Kids Under 18",
+      x = "Average Hours of Childcare per Day",
+      y = "Average Hours of Paid Work per Day"
+    ) 
+
+```
+
+
+
+# Regressions
+
+## MLR 
+
+### Base regression
+
+```{r}
+linreg <- lm(ACT_WORK ~ ACT_CHCARE*female, data2010s)
+summary(linreg)
+```
+
+### Base regression with controls
+
+```{r}
+linreg_controls <- lm(ACT_WORK ~ ACT_CHCARE*female + AGE + EDUC + WKHRS + UNDER18 + AGEYNGST + URBAN, data2010s)
+summary(linreg_controls)
+```
+
+
+## Lasso
+
+Reasoning for using lasso over ridge: lasso can drop predictors entirely instead of just penalizing them - lasso does variable selection
+
+#### THIS IS DEF WRONG
+Need to fix how I implemented lasso (I kinda just copied straight from class activities/hw)... also should we use same pipeline/cv method with OLS?
+
+```{r}
+# need to clean r df for python to take it in
+data2010s_clean <- data2010s %>%
+  mutate(across(where(haven::is.labelled), haven::as_factor),
+    female = as.numeric(female == "Female"))  # adjust label if needed)
+```
+
+```{python convert_r_df}
+py_data = r.data2010s_clean
+```
+
+```{python}
+# outcome
+y = py_data["ACT_WORK"]
+
+# predictors (match MLR)
+X = py_data[[
+    "ACT_CHCARE",
+    "female",
+    "AGE",
+    "EDUC",
+    "WKHRS",
+    "UNDER18",
+    "AGEYNGST",
+    "URBAN"
+]].copy()
+
+# manually create interaction (same as ACT_CHCARE*female)
+X["ACT_CHCARE_female"] = X["ACT_CHCARE"] * X["female"]
+```
+
+```{python}
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import make_column_transformer
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import ElasticNetCV
+from sklearn.model_selection import cross_validate
+```
+
+```{python cv pipeline}
+
+categorical_columns = X.select_dtypes(include=["object", "category"]).columns.tolist()
+numerical_columns = X.select_dtypes(exclude=["object", "category"]).columns.tolist()
+
+preprocessor = make_column_transformer(
+    (OneHotEncoder(drop="first", handle_unknown="ignore"), categorical_columns),
+    (StandardScaler(), numerical_columns),
+    remainder="drop"
+)
+
+pipeline_lasso = Pipeline([
+    ("preprocess", preprocessor),
+    ("estimator", ElasticNetCV(
+        alphas=np.logspace(-5, 5, 100),
+        l1_ratio=1,
+        max_iter=40000
+    ))
+])
+
+# cross-validation
+cv_lasso = cross_validate(
+    estimator=pipeline_lasso,
+    X=X,
+    y=y,
+    cv=10,  # regular K-fold (no grouping needed here unless you want it)
+    scoring="neg_mean_squared_error",
+    return_estimator=True,
+    n_jobs=1
+)
+
+# average MSE
+mse_lasso = np.mean(cv_lasso["test_score"])
+print("LASSO MSE:", mse_lasso)
+```
+
+```{python}
+# pring coefficients of each fold
+coefs = [cv_lasso['estimator'][i].named_steps['estimator'].coef_.round(2) for i in range(10)]
+coefs
+```
+
