@@ -7,7 +7,10 @@ editor:
     wrap: 72
 ---
 
-This is just the EDA Final File with extra work at the bottom on the actual modeling process. This is essentially our master working file with everything we need. A new file should and will be created for our cleaned up presentation. 
+This is just the EDA Final File with extra work at the bottom on the
+actual modeling process. This is essentially our master working file
+with everything we need. A new file should and will be created for our
+cleaned up presentation.
 
 # Set Up
 
@@ -514,11 +517,9 @@ data2010s %>%
 
 ```
 
-
-
 # Regressions
 
-## MLR 
+## MLR
 
 ### Base regression
 
@@ -534,13 +535,32 @@ linreg_controls <- lm(ACT_WORK ~ ACT_CHCARE*female + AGE + EDUC + WKHRS + UNDER1
 summary(linreg_controls)
 ```
 
+```{r}
+# NOTE: Might need to run install.packages("sjPlot")
+library(sjPlot)
+
+plot_model(linreg_controls, 
+           type = "pred", 
+           terms = c("ACT_CHCARE", "female [0,1]"), # [0,1] tells it which values to label
+           title = "Predicted Work Hours",
+           legend.title = "Sex",
+           axis.title = c("Childcare Hours", "Work Hours")) +
+    scale_color_manual(values = c("red", "blue"), 
+                       labels = c("Female", "Male")) +
+    scale_fill_manual(values = c("red", "blue"), 
+                      labels = c("Female", "Male"))
+```
 
 ## Lasso
 
-Reasoning for using lasso over ridge: lasso can drop predictors entirely instead of just penalizing them - lasso does variable selection
+Reasoning for using lasso over ridge: lasso can drop predictors entirely
+instead of just penalizing them - lasso does variable selection
 
 #### THIS IS DEF WRONG
-Need to fix how I implemented lasso (I kinda just copied straight from class activities/hw)... also should we use same pipeline/cv method with OLS?
+
+Need to fix how I implemented lasso (I kinda just copied straight from
+class activities/hw)... also should we use same pipeline/cv method with
+OLS?
 
 ```{r}
 # need to clean r df for python to take it in
@@ -622,4 +642,3 @@ print("LASSO MSE:", mse_lasso)
 coefs = [cv_lasso['estimator'][i].named_steps['estimator'].coef_.round(2) for i in range(10)]
 coefs
 ```
-
