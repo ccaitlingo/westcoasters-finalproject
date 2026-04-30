@@ -637,8 +637,65 @@ mse_lasso = np.mean(cv_lasso["test_score"])
 print("LASSO MSE:", mse_lasso)
 ```
 
-```{python}
+```{python coefs}
 # pring coefficients of each fold
 coefs = [cv_lasso['estimator'][i].named_steps['estimator'].coef_.round(2) for i in range(10)]
 coefs
+```
+
+```{python interpret lasso}
+# get the fitted pipeline from the first fold
+fitted_pipeline = cv_lasso['estimator'][0]
+
+# get the feature names from the preprocessor step
+feature_names = fitted_pipeline.named_steps['preprocess'].get_feature_names_out()
+
+# create a new df of coefficients from the first fold
+coef_values = fitted_pipeline.named_steps['estimator'].coef_
+df_coefs = pd.DataFrame({
+    'feature': feature_names,
+    'coefficient': coef_values
+})
+
+# filter to show the non-zero features from Lasso
+important_features = df_coefs[df_coefs['coefficient'] != 0].sort_values(by='coefficient', ascending=False)
+
+print("=== Featuers which Lasso found to be important ===")
+print(important_features)
+```
+
+```{python visualize lasso}
+import seaborn as sns
+
+plot_df = py_data.copy()
+
+# ensure numeric types for axes
+plot_df['WKHRS'] = pd.to_numeric(plot_df['WKHRS'], errors='coerce')
+plot_df['ACT_CHCARE'] = pd.to_numeric(plot_df['ACT_CHCARE'], errors='coerce')
+
+# remove NAs
+plot_df = plot_df.dropna(subset=['sex_label', 'WKHRS', 'ACT_CHCARE'])
+
+# visualize
+plt.figure(figsize=(10, 6))
+
+sns.lineplot(
+    data=plot_df, 
+    x='ACT_CHCARE',   # Now on the X-axis
+    y='WKHRS',        # Now on the Y-axis
+    hue='sex_label', 
+    marker='o',
+    palette={'Female': 'tab:pink', 'Male': 'tab:blue'},
+    errorbar=None      
+)
+
+# format
+plt.title('Predicted Work Hours', fontsize=14, pad=15)
+plt.xlabel('Childcare Hours', fontsize=12)
+plt.ylabel('Work Hours', fontsize=12)
+plt.legend(title='Gender')
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.ylim(0, 80)
+plt.xlim(0, plot_df['ACT_CHCARE'].max())
+plt.show()
 ```
