@@ -154,7 +154,7 @@ datareg <- filtered_data %>%
   
   filter(
     (EDUC == 5 | EDUC == 6), # filter to just college educated individuals
-    FULLTIME == 1, # filter to just full-time workers
+    # FULLTIME == 1, # filter to just full-time workers
     WAGELM > 0, # remove non-earners
     ACT_CHCARE >= 0, # filter out missing or unclean data
     ACT_PCARE >= 0 # filter out missing or unclean data
@@ -524,14 +524,18 @@ data2010s %>%
 ### Base regression
 
 ```{r}
-linreg <- lm(ACT_WORK ~ ACT_CHCARE*female, data2010s)
+reg_df <- data2010s %>%
+  mutate(
+    ACT_UNPAID = ACT_CHCARE + ACT_UNDOM
+  )
+linreg <- lm(ACT_WORK ~ ACT_UNPAID*female, reg_df)
 summary(linreg)
 ```
 
 ### Base regression with controls
 
 ```{r}
-linreg_controls <- lm(ACT_WORK ~ ACT_CHCARE*female + AGE + EDUC + WKHRS + UNDER18 + AGEYNGST + URBAN, data2010s)
+linreg_controls <- lm(ACT_WORK ~ ACT_UNPAID*female + AGE + EDUC + WKHRS + UNDER18 + AGEYNGST + URBAN, reg_df)
 summary(linreg_controls)
 ```
 
@@ -539,16 +543,20 @@ summary(linreg_controls)
 # NOTE: Might need to run install.packages("sjPlot")
 library(sjPlot)
 
-plot_model(linreg_controls, 
+plot_model(linreg_controls,
            type = "pred", 
-           terms = c("ACT_CHCARE", "female [0,1]"), # [0,1] tells it which values to label
+           show.data = TRUE,
+           terms = c("ACT_UNPAID", "female [0,1]"), # [0,1] tells it which values to label
            title = "Predicted Work Hours",
            legend.title = "Sex",
-           axis.title = c("Childcare Hours", "Work Hours")) +
+           axis.title = c("Hours Spent on Childcare + Unpaid Domestic Work", "Work Hours")) +
     scale_color_manual(values = c("red", "blue"), 
                        labels = c("Female", "Male")) +
-    scale_fill_manual(values = c("red", "blue"), 
-                      labels = c("Female", "Male"))
+    scale_fill_manual(values = c("red", "blue"),  
+                      labels = c("Female", "Male")) +
+    coord_cartesian(xlim = c(0,10)) +    
+    coord_cartesian(ylim = c(0,6.5))
+  
 ```
 
 ## Lasso
@@ -599,6 +607,9 @@ from sklearn.compose import make_column_transformer
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import ElasticNetCV
 from sklearn.model_selection import cross_validate
+from sklearn.model_selection import GroupKFold
+from sklearn.linear_model import LinearRegression, Ridge, RidgeCV
+from sklearn.linear_model import ElasticNet, ElasticNetCV
 ```
 
 ```{python cv pipeline}
@@ -612,6 +623,13 @@ preprocessor = make_column_transformer(
     remainder="drop"
 )
 
+# OLS
+pipe_linear = Pipeline([
+    ('preprocess', preprocessor),
+    ('estimator', LinearRegression())
+])
+
+# Lasso
 pipeline_lasso = Pipeline([
     ("preprocess", preprocessor),
     ("estimator", ElasticNetCV(
@@ -621,26 +639,40 @@ pipeline_lasso = Pipeline([
     ))
 ])
 
-# cross-validation
-cv_lasso = cross_validate(
-    estimator=pipeline_lasso,
-    X=X,
-    y=y,
-    cv=10,  # regular K-fold (no grouping needed here unless you want it)
-    scoring="neg_mean_squared_error",
+
+def cv_model(pipeline):
+  cv_mod = cross_validate(
+    pipeline, # model pipeline
+    X, # feature vector (input)
+    y, # target vector (output)
+    cv = 10, # GroupKFold object
+    scoring = 'neg_mean_squared_error', # Evalute the model using negative MSE
     return_estimator=True,
-    n_jobs=1
-)
+    n_jobs = 1)
+  return cv_mod
+
+
+cv_ols = cv_model(pipe_linear)
+cv_lasso = cv_model(pipeline_lasso)
 
 # average MSE
+mse_ols = np.mean(cv_ols["test_score"])
 mse_lasso = np.mean(cv_lasso["test_score"])
+
+print("OLS MSE:", mse_ols)
 print("LASSO MSE:", mse_lasso)
 ```
 
 ```{python coefs}
 # pring coefficients of each fold
-coefs = [cv_lasso['estimator'][i].named_steps['estimator'].coef_.round(2) for i in range(10)]
-coefs
+coefs_ols = [cv_ols['estimator'][i].named_steps['estimator'].coef_.round(2) for i in range(10)]
+coefs_ols
+
+# pring coefficients of each fold
+coefs_lasso = [cv_lasso['estimator'][i].named_steps['estimator'].coef_.round(2) for i in range(10)]
+coefs_lasso
+
+
 ```
 
 ```{python interpret lasso}
@@ -699,3 +731,5 @@ plt.ylim(0, 80)
 plt.xlim(0, plot_df['ACT_CHCARE'].max())
 plt.show()
 ```
+
+# OLS (with Pipeline)
