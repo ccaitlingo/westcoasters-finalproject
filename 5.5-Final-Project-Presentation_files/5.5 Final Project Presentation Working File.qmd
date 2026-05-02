@@ -33,6 +33,11 @@ ddi <- read_ipums_ddi("../data/ahtus_00001.xml")
 data <- read_ipums_micro(ddi)
 ```
 
+```{r load_revised_data}
+ddi2 <- read_ipums_ddi("../data/ahtus_00002.xml")
+data2 <- read_ipums_micro(ddi2)
+```
+
 # Questions: Exploring the Data
 
 ## What is your outcome variable(s)? How well does it measure the outcome you are interested in? How does it relate to your expectations?
@@ -698,6 +703,7 @@ print(important_features)
 
 ```{python visualize lasso}
 import seaborn as sns
+import matplotlib.pyplot as plt
 
 plot_df = py_data.copy()
 
@@ -733,3 +739,96 @@ plt.show()
 ```
 
 # OLS (with Pipeline)
+
+### Leela's Attempts
+
+What does this show?
+1. Work aggressively changes domestic time, more so for women!
+2. Domestic time eats into sleep/personal care but twice as fast for women 
+```{r new_filtering}
+# Might need to go back and add day of the week so its only M-F (DIARY DAY IPUMS)
+
+# Trying to omit some selection bias with our original filtering because the penalty to motherhood and marriage premium seems to disappear: keeping the age constraint, 
+# filtering and turning sex and full-time into binary variables
+
+filtered2 <- data2 %>%
+  filter(
+    DIARYDAY %in% 2:6, # filter to M-F responses
+    HHTYPE == 1, # filter to married with kids
+                 # isolating a group where childcare is relevant
+                 # avoid comparing people who don’t face childcare constraints
+    UNDER18 > 0, # filter to individuals with kids under age of 18
+    AGE >= 25 & AGE <= 54, # between the ages of 25 and 54
+    EDUC %in% c(5, 6), # college educated
+    AGEYNGST >= 0 & AGEYNGST <= 18, # youngest child is between age 0 and 18
+    SEX %in% c(1, 2), # male or female
+    WAGELM > 0 | WAGELM == 0,
+    ACT_CHCARE >= 0, # filter out missing or unclean data
+    ACT_PCARE >= 0, # filter out missing or unclean data
+    !is.na(AGE), 
+    !is.na(EDUC)
+  ) %>%
+  mutate(
+    sex_label = ifelse(SEX == 1, "Male", "Female")
+  ) %>% 
+  mutate(
+    across(starts_with("ACT_"), ~ .x / 60), # convert all time use vars to hours
+    female = ifelse(SEX == 2, 1, 0),
+    female = factor(female),
+    FULLTIME = factor(FULLTIME), 
+    log_wage = log(WAGELM + 1) # add column for log wage in case it becomes interesting
+  )
+
+  
+# filter to just 2010s data
+data2010s2 <- filtered2 %>% 
+  filter(SAMPLE > 2009)
+
+```
+
+```{r}
+# the time tradeoff between increased unpaid work to paid work, by gender
+reg2 <- data2010s2 %>%
+  mutate(
+    ACT_UNPAID = ACT_CHCARE + ACT_UNDOM
+  )
+linreg2 <- lm(ACT_WORK ~ ACT_UNPAID*female, reg2)
+summary(linreg2)
+```
+
+```{r}
+# the time tradeoff between increased paid work to unpaid work, by gender
+reg3 <- data2010s2 %>%
+  mutate(
+    ACT_UNPAID = ACT_CHCARE + ACT_UNDOM
+  )
+linreg3 <- lm(ACT_UNPAID ~ ACT_WORK*female, reg3)
+summary(linreg3)
+```
+
+```{r}
+# scatter with color coding by gender and a linear regression line for unpaid/paid work
+ggplot(data = data2010s2, aes(x = ACT_UNDOM, y = ACT_WORK, color = female)) +
+  geom_point(alpha = 0.6, size = 2) +
+  geom_smooth(method = "lm", se = TRUE) + 
+  labs(
+    title = "Paid vs. Unpaid Work Trends",
+    subtitle = "Comparing time allocation by gender",
+    x = "Paid Work Hours",
+    y = "Unpaid Domestic Work Hours",
+    color = "Female"
+  ) +
+  theme_minimal()
+```
+
+
+```{r}
+# # the time tradeoff between increased paid and unpaid work to personal care, by gender
+reg4 <- data2010s2 %>%
+  mutate(
+    ACT_UNPAID = ACT_CHCARE + ACT_UNDOM
+  )
+linreg4 <- lm(ACT_PCARE ~ (ACT_WORK + ACT_UNPAID) * female, reg4)
+summary(linreg4)
+```
+
