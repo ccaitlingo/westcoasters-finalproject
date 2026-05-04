@@ -738,13 +738,12 @@ plt.xlim(0, plot_df['ACT_CHCARE'].max())
 plt.show()
 ```
 
-# OLS (with Pipeline)
+# Leela's Attempts w/ diary day data
 
-### Leela's Attempts
+What does this show? 1. Work aggressively changes domestic time, more so
+for women! 2. Domestic time eats into sleep/personal care but twice as
+fast for women
 
-What does this show?
-1. Work aggressively changes domestic time, more so for women!
-2. Domestic time eats into sleep/personal care but twice as fast for women 
 ```{r new_filtering}
 # Might need to go back and add day of the week so its only M-F (DIARY DAY IPUMS)
 
@@ -769,15 +768,14 @@ filtered2 <- data2 %>%
     !is.na(EDUC)
   ) %>%
   mutate(
-    sex_label = ifelse(SEX == 1, "Male", "Female")
-  ) %>% 
-  mutate(
+    sex_label = ifelse(SEX == 1, "Male", "Female"),
     across(starts_with("ACT_"), ~ .x / 60), # convert all time use vars to hours
     female = ifelse(SEX == 2, 1, 0),
     female = factor(female),
     FULLTIME = factor(FULLTIME), 
-    log_wage = log(WAGELM + 1) # add column for log wage in case it becomes interesting
-  )
+    log_wage = log(WAGELM + 1), # add column for log wage in case it becomes interesting
+    ACT_UNPAID = ACT_CHCARE + ACT_UNDOM
+  ) 
 
   
 # filter to just 2010s data
@@ -786,29 +784,96 @@ data2010s2 <- filtered2 %>%
 
 ```
 
+## **Paid Work vs. Unpaid Work
+
 ```{r}
 # the time tradeoff between increased unpaid work to paid work, by gender
-reg2 <- data2010s2 %>%
-  mutate(
-    ACT_UNPAID = ACT_CHCARE + ACT_UNDOM
-  )
-linreg2 <- lm(ACT_WORK ~ ACT_UNPAID*female, reg2)
+linreg2 <- lm(ACT_WORK ~ ACT_UNPAID*female + EMPSP + FULLTIME, data2010s2)
 summary(linreg2)
 ```
 
+Interpretations:
+
+-   There is no statistically significant difference between men and
+    women's time spent at paid work, when controlling for time spent on
+    unpaid domestic work, full-time status, and spouse employment status
+
+-   Relationship between time spent on unpaid domestic work vs. time
+    spent on paid work for men vs. women
+
+    -   Men: Each additional hour spent on unpaid domestic work is
+        associated with 0.92 fewer hours spent on paid work, when
+        controlling for full-time work status and spouse's employment
+        status
+
+    -   Women: Each additional hour spent on unpaid domestic work is
+        associated with 0.79 fewer hours spent on paid work, when
+        controlling for full-time work status and spouse's employment
+        status
+        
 ```{r}
-# the time tradeoff between increased paid work to unpaid work, by gender
-reg3 <- data2010s2 %>%
+# time spent on paid work by gender
+ggplot(data = data2010s2, aes(x = female, y = ACT_WORK, color = female)) +
+  geom_boxplot() +
+  labs(
+    title = "Time Spent on Paid Work for Men vs. Women",
+    subtitle = "Comparing time allocation by gender",
+    x = "Male (0) vs. Female (1) ",
+    y = "Paid Work Hours",
+    color = "Female"
+  ) +
+  theme_minimal()
+
+# time spent on unpaid domestic work by gender
+ggplot(data = data2010s2, aes(x = female, y = ACT_UNPAID, color = female)) +
+  geom_boxplot() +
+  labs(
+    title = "Time Spent on Unpaid Domestic Work for Men vs. Women",
+    subtitle = "Comparing time allocation by gender",
+    x = "Male (0) vs. Female (1) ",
+    y = "Unpaid Domestic Work Hours",
+    color = "Female"
+  ) +
+  theme_minimal()
+
+
+# filter to full time workers
+data2010s2FT <- data2010s2 %>%
+  filter(FULLTIME == 1)
+
+# combined
+data_long <- data2010s2FT %>%
+  pivot_longer(
+    cols = c(ACT_WORK, ACT_UNPAID),
+    names_to = "work_type",
+    values_to = "hours"
+  ) %>%
   mutate(
-    ACT_UNPAID = ACT_CHCARE + ACT_UNDOM
+    work_type = recode(work_type,
+                       "ACT_WORK" = "Paid Work",
+                       "ACT_UNPAID" = "Unpaid Domestic Work"),
+    female = factor(female, labels = c("Men", "Women"))
   )
-linreg3 <- lm(ACT_UNPAID ~ ACT_WORK*female, reg3)
-summary(linreg3)
+
+ggplot(data_long, aes(x = work_type, y = hours, fill = female)) +
+  geom_boxplot(position = position_dodge(width = 0.8)) +
+  labs(
+    title = "Time Spent on Paid vs. Unpaid Work by Gender",
+    subtitle = "Women spend similar time on paid work but more on unpaid domestic work",
+    x = "Time Spent on Work",
+    y = "Hours",
+    fill = "Gender"
+  ) +
+  theme_minimal()
+
+# INTERPRETATION
+# Median paid work quite similar
+# Median unpaid work for women higher than 3rd quartile for men
 ```
 
 ```{r}
 # scatter with color coding by gender and a linear regression line for unpaid/paid work
-ggplot(data = data2010s2, aes(x = ACT_UNDOM, y = ACT_WORK, color = female)) +
+ggplot(data = data2010s2FT, aes(x = ACT_UNPAID, y = ACT_WORK, color = female)) +
   geom_point(alpha = 0.6, size = 2) +
   geom_smooth(method = "lm", se = TRUE) + 
   labs(
@@ -821,14 +886,93 @@ ggplot(data = data2010s2, aes(x = ACT_UNDOM, y = ACT_WORK, color = female)) +
   theme_minimal()
 ```
 
+## Unpaid Work vs. Paid Work
 
 ```{r}
-# # the time tradeoff between increased paid and unpaid work to personal care, by gender
-reg4 <- data2010s2 %>%
-  mutate(
-    ACT_UNPAID = ACT_CHCARE + ACT_UNDOM
-  )
-linreg4 <- lm(ACT_PCARE ~ (ACT_WORK + ACT_UNPAID) * female, reg4)
+# the time tradeoff between increased paid work to unpaid work, by gender
+
+linreg3 <- lm(ACT_UNPAID ~ ACT_WORK*female + FULLTIME + EMPSP, data2010s2)
+summary(linreg3)
+
+
+```
+
+Results interpretation:
+
+-   female coefficient: Women on average spend 2.2 more hours on unpaid
+    domestic work per day than men, controlling for time spent at paid
+    work, full-time work status, and employment status of partner
+
+-   Time trade-off for men vs. women (ACT_WORK and interaction term):
+
+    -   For men: each additional hour of paid work time is associated
+        with 0.28 fewer hours (17 fewer minutes) spent on unpaid
+        domestic work controlling for full-time status and partner's
+        employment status
+    -   For women: each additional hour of paid work time is associated
+        with 0.45 fewer hours (27 fewer minutes) spent on unpaid
+        domestic work controlling for full-time status and partner's
+        employment status
+
+-   Therefore: women on average spend more time on unpaid domestic work
+    (controlling for all factors), but as hours spent at paid work
+    effects women's time spent on unpaid domestic work more severely
+    than men's
+
+```{r}
+# scatter
+ggplot(data = data2010s2, aes(x = ACT_WORK, y = ACT_UNPAID, color = female)) +
+  geom_point(alpha = 0.6, size = 2) +
+  geom_smooth(method = "lm", se = TRUE) + 
+  theme_minimal()
+```
+
+## Personal Care vs. Paid Work and Unpaid Work
+
+```{r}
+# the time tradeoff between increased paid work to personal care, by gender
+linreg4 <- lm(ACT_PCARE ~ ACT_WORK * female + EMPSP + FULLTIME, data2010s2)
 summary(linreg4)
 ```
 
+```{r}
+# the time tradeoff between increased unpaid work to personal care, by gender
+linreg4 <- lm(ACT_PCARE ~ ACT_UNPAID * female + EMPSP + FULLTIME, data2010s2)
+summary(linreg4)
+```
+ 
+ Interpretations:
+ 
+   * Men vs. women:
+     * Men: each additional hour spent on unpaid domestic work is associated with .07 hours more spent on personal care, controlling for other variables
+     * Women: each additional hour spent on unpaid domestic work is associated with .06 hours fewer spent on personal care, controlling for other variables
+   *  Women spend on average 0.59 hours more on personal care, controlling for other variables
+
+
+## **Wage vs. Unpaid Work Time
+
+```{r}
+linreg5 <- lm(WAGELM ~ ACT_UNPAID * female + EMPSP + FULLTIME, data2010s2)
+summary(linreg5)
+```
+
+Interpretation
+
+-   Men vs. women
+
+    -   For men: Each additional hour spent on unpaid domestic work is
+        associated with
+
+```{r}
+# scatter
+ggplot(data = data2010s2FT, aes(x = ACT_UNPAID, y = WAGELM, color = female)) +
+  geom_point(alpha = 0.6, size = 2) +
+  geom_smooth(method = "lm", se = TRUE) + 
+  labs(
+    title = "Wage by Time Spent on Unpaid Domestic Work",
+    x = "Unpaid Domestic Work Hours",
+    y = "Monthly Wage",
+    color = "Female"
+  ) +
+  theme_minimal()
+```
