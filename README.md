@@ -9,7 +9,7 @@ Is there a gender difference in how individuals allocate their time? How does th
 | SAMPLE | Sample |
 | PERNUM | Person number |
 | IDENT | Identifier |
-| HHID | Household ID |
+| HHID | Household ID | 1=Married with child, 2=Married, no child, 3=Female HH with child, 4=Female HH no child, 5=Male HH, 6=Single male, 7=Single female, 8=Other
 | PID | Person identifier |
 | SERIAL | Person serial number |
 | YEAR | Year diary kept |
