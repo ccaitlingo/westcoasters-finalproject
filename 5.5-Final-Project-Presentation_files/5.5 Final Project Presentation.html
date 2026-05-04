@@ -140,17 +140,122 @@ The West Coasters: Caitlin Gong, Meredith Hillier, &amp; Leela Khatri
 </div>
 
 </section>
-<section id="topic-motivation" class="slide level2">
-<h2>Topic (&amp; Motivation?)</h2>
-<p>Time spent on unpaid vs paid work</p>
+<section id="topic-of-interest" class="slide level2">
+<h2>Topic of Interest</h2>
+<ul>
+<li>Investigate the time tradeoff</li>
+<li>Time is a form of capital with an associated opportunity cost… how do individuals allocate their time in their full 24 hour day?</li>
+<li>We speculate there may be differences across demographic variables, including sex, age, and marital status</li>
+</ul>
 </section>
 <section id="data" class="slide level2">
 <h2>Data</h2>
+<div class="columns">
+<div class="column" style="width:30%;">
 <ul>
 <li>IPUMS Time Use, collection of time diary data</li>
 <li>American Heritage Time Use Study Extract Builder</li>
 <li>From 1930 to 2018, harmonized for comparison over time</li>
 </ul>
+</div><div class="column" style="width:70%;">
+<div class="cell">
+<div class="cell-output-display">
+<table class="table caption-top" data-quarto-postprocess="true" style="font-size: 18px; width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">Variable</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">Description</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">Type</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left; width: 8em;">WAGELM</td>
+<td style="text-align: left; width: 25em;">Monthly employment income</td>
+<td style="text-align: left;">Numerical</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; width: 8em;">SEX</td>
+<td style="text-align: left; width: 25em;">Individual's sex (female=1, male=0)</td>
+<td style="text-align: left;">Binary</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; width: 8em;">YEAR</td>
+<td style="text-align: left; width: 25em;">Year of the diary entry</td>
+<td style="text-align: left;">Numerical</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; width: 8em;">HHID</td>
+<td style="text-align: left; width: 25em;">Household type (1=married with child)</td>
+<td style="text-align: left;">Categorical</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; width: 8em;">UNDER18</td>
+<td style="text-align: left; width: 25em;">Number of children under 18 in the household</td>
+<td style="text-align: left;">Numerical</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; width: 8em;">AGEYNGST</td>
+<td style="text-align: left; width: 25em;">Age of youngest child</td>
+<td style="text-align: left;">Numerical</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; width: 8em;">EDUC</td>
+<td style="text-align: left; width: 25em;">Education (5=college graduate, 6=post college)</td>
+<td style="text-align: left;">Categorical</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; width: 8em;">AGE</td>
+<td style="text-align: left; width: 25em;">Age of participant</td>
+<td style="text-align: left;">Numerical</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; width: 8em;">ACT_PAID</td>
+<td style="text-align: left; width: 25em;">Daily time spent on paid work</td>
+<td style="text-align: left;">Numerical</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; width: 8em;">ACT_UNPAID</td>
+<td style="text-align: left; width: 25em;">Daily time spent on unpaid domestic work</td>
+<td style="text-align: left;">Numerical</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; width: 8em;">ACT_CHCARE</td>
+<td style="text-align: left; width: 25em;">Daily time spent on child care</td>
+<td style="text-align: left;">Numerical</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; width: 8em;">ACT_CIVIC</td>
+<td style="text-align: left; width: 25em;">Daily time spent on civic, voluntary, and religious activities</td>
+<td style="text-align: left;">Numerical</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; width: 8em;">ACT_EDUCA</td>
+<td style="text-align: left; width: 25em;">Daily time spent on education</td>
+<td style="text-align: left;">Numerical</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; width: 8em;">ACT_LEISURE</td>
+<td style="text-align: left; width: 25em;">Daily time spent on free time (leisure)</td>
+<td style="text-align: left;">Numerical</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; width: 8em;">ACT_PCARE</td>
+<td style="text-align: left; width: 25em;">Daily time spent on personal care</td>
+<td style="text-align: left;">Numerical</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; width: 8em;">ACT_TRAVEL</td>
+<td style="text-align: left; width: 25em;">Daily time spent on travel</td>
+<td style="text-align: left;">Numerical</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</div></div>
 </section>
 <section id="eda-unpaid-domestic-work-by-sex" class="slide level2">
 <h2>EDA: Unpaid Domestic Work by Sex</h2>
@@ -164,7 +269,14 @@ The West Coasters: Caitlin Gong, Meredith Hillier, &amp; Leela Khatri
 <img data-src="5.5-Final-Project-Presentation_files/figure-revealjs/Figure2-1.png" width="960" class="r-stretch"></section>
 <section id="eda-clustering-in-2d" class="slide level2">
 <h2>EDA: Clustering in 2D</h2>
-<p>This visualization uses hierarchical clustering to find groupings in PCA space. The first four PCs are defined below. Each PC represents a linear combination of variables that capture the most variation across individuals in this sample (** = most influential).</p>
+<p>This visualization uses hierarchical clustering to find groupings in PCA space.</p>
+<div data-layout-align="center">
+<p><img data-src="pca_clusters_annotated.png"></p>
+</div>
+</section>
+<section id="eda-clustering-in-2d-1" class="slide level2">
+<h2>EDA: Clustering in 2D</h2>
+<p>The first four PCs are defined below. Each PC represents a linear combination of variables that capture the most variation across individuals in this sample (** = most influential).</p>
 <div class="columns">
 <div class="column" style="width:70%;">
 <div class="cell">
@@ -276,11 +388,31 @@ The West Coasters: Caitlin Gong, Meredith Hillier, &amp; Leela Khatri
 <p>Helped us hone in on variables of interest.</p>
 </div></div>
 </section>
-<section id="eda-clustering-in-2d-1" class="slide level2">
-<h2>EDA: Clustering in 2D</h2>
-<div data-layout-align="center">
-<p><img data-src="../figures/pca_clusters_annotated.png"></p>
-</div>
+<section id="data-cleaning" class="slide level2">
+<h2>Data Cleaning</h2>
+<div class="columns">
+<div class="column" style="width:60%;">
+<p>Filters:</p>
+<ul>
+<li>Day: M-F</li>
+<li>Household type: married with kids</li>
+<li>Kids under 18 in household</li>
+<li>Working-age individuals (25 through 54)</li>
+<li>College educated</li>
+<li>Filter out missing/dirty values (wage, sex, time use)</li>
+<li>Year: 2010s</li>
+</ul>
+</div><div class="column" style="width:40%;">
+<p>Transformations:</p>
+<ul>
+<li>Convert categorical variables to factors</li>
+<li>Convert time use variables to hours per day</li>
+<li>Combine time spent on child care and domestic work into one “unpaid domestic work” variable</li>
+</ul>
+</div></div>
+<p>Left with ~2700 observations in the end</p>
+<h3 id="research-question">Research Question</h3>
+<p>How does time spent doing unpaid domestic work influence wages and time spent doing paid work? Does this relationship differ by sex?</p>
 </section>
 <section id="regressions" class="slide level2">
 <h2>Regressions</h2>
@@ -331,7 +463,7 @@ The West Coasters: Caitlin Gong, Meredith Hillier, &amp; Leela Khatri
 <section id="regression-1-paid-vs.-unpaid-work" class="slide level2">
 <h2>Regression 1: Paid vs.&nbsp;Unpaid Work</h2>
 
-<img data-src="5.5-Final-Project-Presentation_files/figure-revealjs/unnamed-chunk-4-1.png" width="960" class="r-stretch"><p>Women spend similar time on paid work but more on unpaid domestic work</p>
+<img data-src="5.5-Final-Project-Presentation_files/figure-revealjs/unnamed-chunk-4-1.png" width="960" class="r-stretch"><p>Women who work full-time spend a similar amount of time on paid work but more time on unpaid domestic work.</p>
 </section>
 <section id="regression-1-paid-vs.-unpaid-work-1" class="slide level2">
 <h2>Regression 1: Paid vs.&nbsp;Unpaid Work</h2>
@@ -364,16 +496,15 @@ Note:              *p&lt;0.1; **p&lt;0.05; ***p&lt;0.01</code></pre>
 </div>
 </div><div class="column" style="width:50%;">
 <ul>
-<li><p>When controlling for <span class="math inline">\(C_i\)</span> and time spent on unpaid domestic work, there is no statistically significant difference between males and females’ time spent at paid work.</p></li>
-<li><p>When controlling for <span class="math inline">\(C_i\)</span>, each additional hour spent on unpaid domestic work is associated with spending</p>
+<li><p>When controlling for <span class="math inline">\(\,C_i\,\)</span> and time spent on unpaid domestic work, there is no statistically significant difference between males and females’ time spent at paid work.</p></li>
+<li><p>When controlling for <span class="math inline">\(\,C_i\,\)</span>, each additional hour spent on unpaid domestic work is associated with spending</p>
 <ul>
 <li><p>0.92 fewer hours on paid work for males, and</p></li>
-<li><p>0.79 fewer hours spent on paid work for females.</p></li>
+<li><p>0.79 fewer hours on paid work for females.</p></li>
 </ul></li>
 </ul>
 </div></div>
-<p><br></p>
-<p>Takeaway: blah blah</p>
+<p><strong>Takeaway</strong>: There is evidence of societal expectations that women continue handling domestic work despite similar paid work obligations.</p>
 </section>
 <section id="regression-2-wage-vs.-unpaid-work" class="slide level2">
 <h2>Regression 2: Wage vs.&nbsp;Unpaid Work</h2>
@@ -411,8 +542,8 @@ Note:              *p&lt;0.1; **p&lt;0.05; ***p&lt;0.01</code></pre>
 </div>
 </div><div class="column" style="width:50%;">
 <ul>
-<li><p>When controlling for <span class="math inline">\(C_i\)</span> and time spent on unpaid domestic work, females on average earn $1,517.20 less per month than males.</p></li>
-<li><p>When controlling for <span class="math inline">\(C_i\)</span>, each additional hour spent on unpaid domestic work is associated with earning</p>
+<li><p>When controlling for <span class="math inline">\(\,C_i\,\)</span> and time spent on unpaid domestic work, females on average earn $1,517.20 less per month than males.</p></li>
+<li><p>When controlling for <span class="math inline">\(\,C_i\,\)</span>, each additional hour spent on unpaid domestic work is associated with earning</p>
 <ul>
 <li><p>$149 less per month for males, and</p></li>
 <li><p>$20 less per month for females.</p></li>
@@ -420,7 +551,29 @@ Note:              *p&lt;0.1; **p&lt;0.05; ***p&lt;0.01</code></pre>
 </ul>
 </div></div>
 <p><br></p>
-<p>Takeaway: blah blah</p>
+<p><strong>Takeaway</strong>: Same societal expectations are showing, where time spent on unpaid domestic work has a larger negative effect on male earnings than female earnings.</p>
+</section>
+<section id="takeaways" class="slide level2">
+<h2>Takeaways!</h2>
+<ul>
+<li>Findings affirm our hypotheses that the time tradeoff (between unpaid domestic work and paid work) does differ by gender, with men more severely affected</li>
+<li>Women are expected to work the same amount or more, while earning less on average</li>
+<li>For additional time spent on unpaid domestic work, the sacrifice for paid work and wages is larger for men than it is for women.</li>
+</ul>
+</section>
+<section id="limitations" class="slide level2">
+<h2>Limitations</h2>
+<ul>
+<li>Diary data is messy and can be inconsistent</li>
+<li>Is there some selection bias with our sample? Are our filters too strict or not strict enough?</li>
+<li>Limited to male/female binary and heterosexual relationships</li>
+</ul>
+<h3 id="future-work">Future Work</h3>
+<ul>
+<li>Include different demographic variables in regressions, like race and education level</li>
+<li>Include other time use variables as outcomes, like physical activity and leisure</li>
+<li>Time series exploration to examine how these relationships have shifted over time</li>
+</ul>
 
 </section>
     </div>

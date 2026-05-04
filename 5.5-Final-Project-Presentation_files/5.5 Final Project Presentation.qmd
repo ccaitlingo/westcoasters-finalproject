@@ -13,16 +13,55 @@ engine: knitr
 smaller: true
 ---
 
-## Topic (& Motivation?)
+## Topic of Interest
 
-Time spent on unpaid vs paid work
+  * Investigate the time tradeoff 
+  * Time is a form of capital with an associated opportunity cost... how do individuals allocate their time in their full 24 hour day?
+  * We speculate there may be differences across demographic variables, including sex, age, and marital status
 
 
 ## Data
 
+::::: columns
+::: {.column width="30%"}
   * IPUMS Time Use, collection of time diary data
   * American Heritage Time Use Study Extract Builder
   * From 1930 to 2018, harmonized for comparison over time
+:::
+::: {.column width="70%"}
+```{r codebook, echo=FALSE, warning=FALSE, message=FALSE}
+library(kableExtra)
+
+codebook <- tibble::tribble(
+  ~Variable, ~Description, ~Type,
+  "WAGELM", "Monthly employment income", "Numerical",
+  "SEX", "Individual's sex (female=1, male=0)", "Binary",
+  "YEAR", "Year of the diary entry", "Numerical",
+  "HHID", "Household type (1=married with child)", "Categorical",
+  "UNDER18", "Number of children under 18 in the household", "Numerical",
+  "AGEYNGST", "Age of youngest child", "Numerical",
+  "EDUC", "Education (5=college graduate, 6=post college)", "Categorical",
+  "AGE", "Age of participant", "Numerical",
+  "ACT_PAID", "Daily time spent on paid work", "Numerical",
+  "ACT_UNPAID", "Daily time spent on unpaid domestic work", "Numerical",
+  "ACT_CHCARE", "Daily time spent on child care", "Numerical",
+  "ACT_CIVIC", "Daily time spent on civic, voluntary, and religious activities", "Numerical",
+  "ACT_EDUCA", "Daily time spent on education", "Numerical",
+  "ACT_LEISURE", "Daily time spent on free time (leisure)", "Numerical",
+  "ACT_PCARE", "Daily time spent on personal care", "Numerical",
+  "ACT_TRAVEL", "Daily time spent on travel", "Numerical"
+)
+
+codebook %>%
+  kable(format = "html") %>%
+  kable_styling(font_size = 18, full_width = FALSE, position = "center") %>%
+  column_spec(1, width = "8em") %>%
+  column_spec(2, width = "25em")
+```
+:::
+:::::
+  
+
 
 ```{r load_packages, include=FALSE, warning=FALSE, message=FALSE}
 # R packages
@@ -138,7 +177,7 @@ df <- filtered_data %>%
   mutate(
     Leisure = ACT_INHOME + ACT_OUTHOME
   ) %>% 
-  select(-"ACT_CIVIC", -"ACT_EDUCA", -"ACT_MEDIA", -"ACT_MISSING",-"ACT_INHOME", -"ACT_OUTHOME", -"ACT_TRAVEL", -"ACT_PHYSICAL" )
+  select(-"ACT_CIVIC", -"ACT_EDUCA", -"ACT_MEDIA", -"ACT_MISSING",-"ACT_INHOME", -"ACT_OUTHOME", -"ACT_TRAVEL", -"ACT_PHYSICAL", -"ACT_UNPAID" )
 # pivot! to have all activities listed under activity_category
 df_long <- df %>%
   pivot_longer(
@@ -152,7 +191,7 @@ df_long <- df %>%
     activity_category = case_when(
       activity_category == "CHCARE" ~ "Childcare",
       activity_category == "PCARE"  ~ "Personal Care",
-      activity_category == "UNDOM"  ~ "Unpaid Domestic Work",
+      activity_category == "UNDOM"  ~ "Domestic Work",
       activity_category == "WORK"   ~ "Paid Work",
       TRUE ~ activity_category
     ),
@@ -201,7 +240,14 @@ ggplot(df_sum, aes(x = SEX, y = minutes, fill = activity_category)) +
 ## EDA: Clustering in 2D
 
 This visualization uses hierarchical clustering to find groupings in
-PCA space. The first four PCs are defined below. Each PC represents a linear combination of variables that capture the most variation across individuals in this sample (** = most influential).
+PCA space. 
+
+::: {layout-align="center"}
+
+![](pca_clusters_annotated.png)
+
+:::
+
 
 ```{r include=FALSE}
 # We discovered that data points in clusters 2 and 3, which
@@ -329,6 +375,14 @@ pct_grp <- round(prop.table(table(grp, pca_scores$binary_var), 1) * 100, 1)
 pct_grp
 ```
 
+
+
+## EDA: Clustering in 2D
+
+
+
+The first four PCs are defined below. Each PC represents a linear combination of variables that capture the most variation across individuals in this sample (** = most influential).
+
 ::::: columns
 ::: {.column width="70%"}
 
@@ -369,13 +423,37 @@ Helped us hone in on variables of interest.
 :::
 :::::
 
-## EDA: Clustering in 2D
 
-::: {layout-align="center"}
+## Data Cleaning
 
-![](../figures/pca_clusters_annotated.png)
+::::: columns
+::: {.column width="60%"}
+Filters:
+
+  * Day: M-F
+  * Household type: married with kids
+  * Kids under 18 in household
+  * Working-age individuals (25 through 54)
+  * College educated
+  * Filter out missing/dirty values (wage, sex, time use)
+  * Year: 2010s
+
 :::
 
+::: {.column width="40%"}
+Transformations:
+
+  * Convert categorical variables to factors
+  * Convert time use variables to hours per day
+  * Combine time spent on child care and domestic work into one "unpaid domestic work" variable
+:::
+:::::
+
+Left with ~2700 observations in the end
+
+### Research Question
+
+How does time spent doing unpaid domestic work influence wages and time spent doing paid work? Does this relationship differ by sex?
 
 
 ## Regressions
@@ -389,10 +467,8 @@ $$\text{WAGELM} = \beta_0 + \beta_1 \cdot \text{ACT_UNPAID} \times \text{SEX} + 
 
 ### Codebook
 
-```{r codebook, echo=FALSE, warning=FALSE, message=FALSE}
-library(kableExtra)
-
-codebook <- tibble::tribble(
+```{r codebook2, echo=FALSE, warning=FALSE, message=FALSE}
+codebook2 <- tibble::tribble(
   ~Variable, ~Description, ~Type,
   "WAGELM", "Monthly employment income", "Numerical",
   "ACT_PAID", "Daily time spent on paid work", "Numerical",
@@ -400,7 +476,7 @@ codebook <- tibble::tribble(
   "SEX", "Individual's sex (female=1, male=0)", "Binary"
 )
 
-codebook %>%
+codebook2 %>%
   kable(format = "html") %>%
   kable_styling(font_size = 18, full_width = FALSE, position = "center") %>%
   column_spec(1, width = "8em") %>%
@@ -472,7 +548,7 @@ ggplot(data_long, aes(x = work_type, y = hours, fill = female)) +
   geom_boxplot(position = position_dodge(width = 0.8)) +
   labs(
     title = "Time Spent on Paid vs. Unpaid Work by Gender",
-    subtitle = "Initial look at gender differences in working time",
+    subtitle = "Initial look at gender differences in working time for full-time workers",
     x = "Time Spent on Work",
     y = "Hours",
     fill = "Gender"
@@ -483,7 +559,7 @@ ggplot(data_long, aes(x = work_type, y = hours, fill = female)) +
 # Median paid work quite similar
 # Median unpaid work for women higher than 3rd quartile for men
 ```
-Women spend similar time on paid work but more on unpaid domestic work
+Women who work full-time spend a similar amount of time on paid work but more time on unpaid domestic work.
 
 ## Regression 1: Paid vs. Unpaid Work
 
@@ -499,19 +575,19 @@ stargazer(linreg2, type="text", omit.stat = c("rsq", "ser", "f", "adj.rsq", "n")
 :::
 
 ::: {.column width="50%"}
--   When controlling for $C_i$ and time spent on unpaid domestic work, there is no statistically significant difference between males and females' time spent at paid work.
+-   When controlling for $\,C_i\,$ and time spent on unpaid domestic work, there is no statistically significant difference between males and females' time spent at paid work.
 
--   When controlling for $C_i$, each additional hour spent on unpaid domestic work is associated with spending
+-   When controlling for $\,C_i\,$, each additional hour spent on unpaid domestic work is associated with spending
 
     -   0.92 fewer hours on paid work for males, and
 
-    -   0.79 fewer hours spent on paid work for females.
+    -   0.79 fewer hours on paid work for females.
 :::
 :::::
 
-<br>
 
-Takeaway: blah blah
+**Takeaway**: There is evidence of societal expectations that women continue handling domestic work despite similar paid work obligations.
+
 
 ## Regression 2: Wage vs. Unpaid Work
 
@@ -521,7 +597,7 @@ ggplot(data2010s2FT, aes(x = factor(female, labels = c("Men", "Women")),
   geom_boxplot() +
   labs(
     title = "Wage Distribution by Gender",
-    subtitle = "Initial look at gender differences in wages",
+    subtitle = "Initial look at gender differences in wages for full-time workers",
     x = "",
     y = "Monthly Wage",
     fill = "Gender"
@@ -544,9 +620,9 @@ stargazer(linreg5, type="text", omit.stat = c("rsq", "ser", "f", "adj.rsq", "n")
 :::
 
 ::: {.column width="50%"}
--   When controlling for $C_i$ and time spent on unpaid domestic work, females on average earn $1,517.20 less per month than males.
+-   When controlling for $\,C_i\,$ and time spent on unpaid domestic work, females on average earn $1,517.20 less per month than males.
 
--   When controlling for $C_i$, each additional hour spent on unpaid domestic work is associated with earning
+-   When controlling for $\,C_i\,$, each additional hour spent on unpaid domestic work is associated with earning
 
     -   $149 less per month for males, and
 
@@ -556,10 +632,26 @@ stargazer(linreg5, type="text", omit.stat = c("rsq", "ser", "f", "adj.rsq", "n")
 
 <br>
 
-Takeaway: blah blah
+**Takeaway**: Same societal expectations are showing, where time spent on unpaid domestic work has a larger negative effect on male earnings than female earnings.
+
 
 ## Takeaways!
 
+  * Findings affirm our hypotheses that the time tradeoff (between unpaid domestic work and paid work) does differ by gender, with men more severely affected
+  * Women are expected to work the same amount or more, while earning less on average
+  * For additional time spent on unpaid domestic work, the sacrifice for paid work and wages is larger for men than it is for women.
 
-## Future Work
 
+## Limitations
+
+  * Diary data is messy and can be inconsistent
+  * Is there some selection bias with our sample? Are our filters too strict or not strict enough?
+  * Limited to male/female binary and heterosexual relationships
+
+### Future Work
+
+  * Include different demographic variables in regressions, like race and education level
+  * Include other time use variables as outcomes, like physical activity and leisure
+  * Time series exploration to examine how these relationships have shifted over time
+  
+  
